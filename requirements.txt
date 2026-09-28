@@ -1,0 +1,18 @@
+# Data models & Configuration
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# LLM & Vector Database
+openai>=1.0.0
+qdrant-client>=1.7.0
+
+# Parsing & Search Utilities
+pypdf>=4.0.0
+rank_bm25>=0.2.2
+flashrank>=0.2.0
+
+# Google Drive API & Auth
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.1.0
+google-auth-httplib2>=0.1.1
