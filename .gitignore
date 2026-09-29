@@ -1,10 +1,12 @@
+# Environments
 venv/
 .env
-*.json
-!client_secret.json.example
-__pycache__/
-.DS_Store
-qdrant_data/
+
+# Google Auth Secrets (NEVER COMMIT THESE)
 credentials.json
 token.json
-.env
+
+# Python Cache
+__pycache__/
+*.pyc
+.pytest_cache/
