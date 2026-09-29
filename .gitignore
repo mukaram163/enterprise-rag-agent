@@ -7,3 +7,4 @@ __pycache__/
 qdrant_data/
 credentials.json
 token.json
+.env
