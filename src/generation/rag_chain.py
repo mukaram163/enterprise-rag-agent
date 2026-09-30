@@ -1,10 +1,8 @@
-import os
-import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, AsyncGenerator
+
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from google.genai.errors import ServerError
 
 load_dotenv()
 
@@ -33,18 +31,17 @@ class GeminiRAGGenerator:
 
         return "\n\n---\n\n".join(formatted_blocks)
 
-    def generate_response(
+    async def generate_response_stream(
         self,
         query: str,
-        retrieved_items: List[Dict[str, Any]],
-        max_retries: int = 3
-    ) -> str:
+        retrieved_items: List[Dict[str, Any]]
+    ) -> AsyncGenerator[str, None]:
 
         formatted_context = self.format_context(retrieved_items)
 
         system_instruction = (
             "You are an expert AI assistant answering questions based solely "
-            "on retrieved internal documents. "
+            "on retrieved internal documents.\n"
             "Guidelines:\n"
             "1. Rely strictly on the provided context to answer the prompt.\n"
             "2. If the context does not contain sufficient information, "
@@ -68,24 +65,12 @@ Answer:
             temperature=0.2,
         )
 
-        for attempt in range(1, max_retries + 1):
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=user_prompt,
-                    config=config,
-                )
+        response_stream = await self.client.aio.models.generate_content_stream(
+            model=self.model_name,
+            contents=user_prompt,
+            config=config,
+        )
 
-                return response.text
-
-            except ServerError as e:
-                if attempt == max_retries:
-                    raise e
-
-                print(
-                    f"[Warning] Gemini API 503 high demand spike. "
-                    f"Retrying in 2 seconds "
-                    f"(Attempt {attempt}/{max_retries})..."
-                )
-
-                time.sleep(2)
+        async for chunk in response_stream:
+            if chunk.text:
+                yield chunk.text
