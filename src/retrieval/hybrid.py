@@ -1,48 +1,49 @@
-from typing import List, Dict, Any
+import logging
+from typing import List, Dict, Any, Optional
 from src.retrieval.dense import DenseRetriever
 from src.retrieval.sparse import SparseRetriever
-from src.models.document import DocumentChunk
+
+logger = logging.getLogger(__name__)
 
 class HybridRetriever:
-    def __init__(self, chunks: List[DocumentChunk] = None, k_rrf: int = 60):
-        self.dense_retriever = DenseRetriever()
-        self.sparse_retriever = SparseRetriever(chunks=chunks) if chunks else None
-        self.k_rrf = k_rrf
+    def __init__(self, dense_retriever: Optional[DenseRetriever] = None, sparse_retriever: Optional[SparseRetriever] = None):
+        self.dense = dense_retriever or DenseRetriever()
+        self.sparse = sparse_retriever or SparseRetriever()
 
-    def set_chunks(self, chunks: List[DocumentChunk]):
-        """Sets or updates corpus chunks for sparse retrieval."""
-        self.sparse_retriever = SparseRetriever(chunks=chunks)
+    def search(self, query: str, top_k: int = 10, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Combines Dense (pgvector) and Sparse (BM25) via Reciprocal Rank Fusion."""
+        dense_docs = self.dense.search(query=query, top_k=top_k, user_id=user_id)
+        sparse_docs = self.sparse.search(query=query, top_k=top_k, user_id=user_id)
 
-    def search(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
-        """Combines Dense and Sparse results using Reciprocal Rank Fusion (RRF)."""
-        dense_results = self.dense_retriever.search(query, top_k=top_k * 2)
-        
-        sparse_results = []
-        if self.sparse_retriever:
-            sparse_results = self.sparse_retriever.search(query, top_k=top_k * 2)
+        if not dense_docs and not sparse_docs:
+            return []
 
-        rrf_scores: Dict[str, float] = {}
-        doc_map: Dict[str, Dict[str, Any]] = {}
+        rrf_scores = {}
+        doc_map = {}
+        rrf_k = 60
 
-        # Process dense rankings
-        for rank, doc in enumerate(dense_results, start=1):
-            key = f"{doc['file_name']}_p{doc['page_number']}_c{doc['chunk_index']}"
-            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (self.k_rrf + rank))
-            doc_map[key] = doc
+        for rank, doc in enumerate(dense_docs):
+            doc_id = doc["chunk_id"]
+            doc_map[doc_id] = doc
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + (1.0 / (rrf_k + rank + 1))
 
-        # Process sparse rankings
-        for rank, doc in enumerate(sparse_results, start=1):
-            key = f"{doc['file_name']}_p{doc['page_number']}_c{doc['chunk_index']}"
-            rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (self.k_rrf + rank))
-            doc_map[key] = doc
+        for rank, doc in enumerate(sparse_docs):
+            doc_id = doc["chunk_id"]
+            if doc_id not in doc_map:
+                doc_map[doc_id] = doc
+            else:
+                for key, val in doc.items():
+                    if key not in doc_map[doc_id] or not doc_map[doc_id][key]:
+                        doc_map[doc_id][key] = val
 
-        # Sort combined results by aggregated RRF score
-        sorted_keys = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + (1.0 / (rrf_k + rank + 1))
+
+        sorted_docs = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
 
         fused_results = []
-        for key in sorted_keys[:top_k]:
-            doc_info = doc_map[key].copy()
-            doc_info["rrf_score"] = rrf_scores[key]
-            fused_results.append(doc_info)
+        for doc_id, rrf_score in sorted_docs[:top_k]:
+            doc = dict(doc_map[doc_id])
+            doc["score"] = rrf_score
+            fused_results.append(doc)
 
         return fused_results
