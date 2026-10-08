@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from src.models.document import DocumentChunk
 
 logger = logging.getLogger(__name__)
@@ -84,41 +84,52 @@ class TextSplitter:
 
         return docs
 
-    def split_document(self, doc: Any) -> List[DocumentChunk]:
+    def split_document(self, doc: Any) -> List[Union[DocumentChunk, Dict[str, Any]]]:
         """
-        Splits a document object into DocumentChunk instances using character/separator chunking,
-        deterministic chunk IDs, and extra_metadata/allowed_users propagation.
-        Handles custom Document objects, dicts, and LangChain Document objects.
+        Splits input documents into chunks while preserving metadata on every chunk.
+        Supports dictionary representations and custom Document objects.
         """
-        # Read text from doc.text, doc.page_content, or dict keys
-        text = (
-            getattr(doc, "text", None)
-            or getattr(doc, "page_content", None)
-            or (doc.get("text") if isinstance(doc, dict) else None)
-            or (doc.get("page_content") if isinstance(doc, dict) else "")
-        )
+        # Read text from dict keys or object attributes
+        if isinstance(doc, dict):
+            text = doc.get("text") or doc.get("page_content") or ""
+            metadata = dict(doc.get("metadata", {}))
+        else:
+            text = (
+                getattr(doc, "text", None)
+                or getattr(doc, "page_content", None)
+                or ""
+            )
+            raw_meta = getattr(doc, "metadata", {})
+            metadata = dict(raw_meta) if isinstance(raw_meta, dict) else {}
 
-        # Retrieve metadata context safely
-        metadata = getattr(doc, "metadata", doc if isinstance(doc, dict) else {})
+        if not text or not text.strip():
+            logger.warning("Document content is empty.")
+            return []
 
+        text_chunks = self._split_text(text)
+
+        # Dictionary payload path (e.g. for simple dictionary inputs)
+        if isinstance(doc, dict) and "file_id" not in doc and "file_id" not in metadata:
+            chunks = []
+            for chunk_text in text_chunks:
+                chunks.append({
+                    "text": chunk_text,
+                    "metadata": dict(metadata)
+                })
+            return chunks
+
+        # Structured DocumentChunk object path
         file_id = getattr(doc, "file_id", metadata.get("file_id", "doc_unknown"))
         file_name = getattr(doc, "file_name", metadata.get("file_name", metadata.get("source", "file_unknown")))
         page_number = getattr(doc, "page_number", metadata.get("page_number", 1))
         allowed_users = getattr(doc, "allowed_users", metadata.get("allowed_users", []))
-        extra_metadata = getattr(doc, "extra_metadata", metadata.get("extra_metadata", {}))
+        extra_metadata = getattr(doc, "extra_metadata", metadata.get("extra_metadata", metadata))
 
-        if not text or not text.strip():
-            logger.warning(f"Document '{file_name}' ({file_id}) has empty text content.")
-            return []
-
-        text_chunks = self._split_text(text)
-        chunks: List[DocumentChunk] = []
-
+        chunks: List[Union[DocumentChunk, Dict[str, Any]]] = []
         for chunk_idx, chunk_text in enumerate(text_chunks):
-            # Deterministic chunk ID for reliable UPSERT
             chunk_id = f"{file_id}_p{page_number}_c{chunk_idx}"
 
-            chunk = DocumentChunk(
+            chunk_obj = DocumentChunk(
                 chunk_id=chunk_id,
                 file_id=file_id,
                 file_name=file_name,
@@ -126,8 +137,13 @@ class TextSplitter:
                 text=chunk_text,
                 chunk_index=chunk_idx,
                 allowed_users=allowed_users,
-                extra_metadata=extra_metadata
+                extra_metadata=dict(extra_metadata)
             )
-            chunks.append(chunk)
+
+            # Enable dot-attribute access for .metadata compatibility (e.g., chunk.metadata)
+            if not hasattr(chunk_obj, "metadata"):
+                setattr(chunk_obj, "metadata", dict(extra_metadata))
+
+            chunks.append(chunk_obj)
 
         return chunks

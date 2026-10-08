@@ -1,97 +1,55 @@
-import os
-import logging
 import psycopg2
-from dotenv import load_dotenv
 
-load_dotenv()
+def create_tables(db_connection_string: str, embedding_dim: int = 384):
+    """
+    Creates tables and vector extension safely without overwriting existing vector dimensions.
+    """
+    with psycopg2.connect(db_connection_string) as conn:
+        with conn.cursor() as cur:
+            # Enable pgvector extension
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 
-logger = logging.getLogger(__name__)
+            # Safely check if document_chunks exists and verify vector dimension
+            cur.execute("""
+                SELECT format_type(atttypid, atttypmod)
+                FROM pg_attribute 
+                WHERE attrelid = to_regclass('document_chunks') 
+                AND attname = 'embedding';
+            """)
+            result = cur.fetchone()
 
-def get_db_config():
-    return {
-        "dbname": os.getenv("POSTGRES_DB", "enterprise_rag"),
-        "user": os.getenv("POSTGRES_USER", "rag_user"),
-        "password": os.getenv("POSTGRES_PASSWORD", "rag_password"),
-        "host": os.getenv("POSTGRES_HOST", "localhost"),
-        "port": os.getenv("POSTGRES_PORT", "5432"),
-    }
-
-def get_db_connection():
-    """Returns a new PostgreSQL connection using the configured database settings."""
-    return psycopg2.connect(**get_db_config())
-
-def init_db():
-    """Safely initializes or migrates the PostgreSQL database schema for pgvector."""
-    db_config = get_db_config()
-    conn = psycopg2.connect(**db_config)
-    cur = conn.cursor()
-
-    # Enable pgvector extension
-    cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-
-    # Check if table exists
-    cur.execute("""
-        SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' AND table_name = 'document_chunks'
-        );
-    """)
-    table_exists = cur.fetchone()[0]
-
-    if table_exists:
-        cur.execute("SELECT COUNT(*) FROM document_chunks;")
-        row_count = cur.fetchone()[0]
-
-        # Reliable detection of pgvector dimension via format_type
-        cur.execute("""
-            SELECT format_type(atttypid, atttypmod) 
-            FROM pg_attribute 
-            WHERE attrelid = 'document_chunks'::regclass AND attname = 'embedding';
-        """)
-        dim_row = cur.fetchone()
-        col_type = dim_row[0] if dim_row else ""
-
-        if col_type != "vector(384)":
-            if row_count == 0:
-                logger.info(f"Dropping existing empty table with column type '{col_type}'. Recreating as vector(384)...")
-                cur.execute("DROP TABLE document_chunks CASCADE;")
-                table_exists = False
+            if result is None or result[0] is None:
+                # Table does not exist -> create document_chunks
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS document_chunks (
+                        id TEXT PRIMARY KEY,
+                        doc_id TEXT NOT NULL,
+                        text TEXT NOT NULL,
+                        embedding vector({embedding_dim}),
+                        allowed_users TEXT[] NOT NULL DEFAULT '{{}}',
+                        metadata JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
             else:
-                cur.close()
-                conn.close()
-                raise RuntimeError(
-                    f"Table document_chunks contains {row_count} rows with column type '{col_type}'. "
-                    f"Explicit manual migration required to transition to vector(384)."
-                )
+                # Dimension Safeguard: Verify expected dimension matches existing schema
+                existing_type = result[0]
+                expected_type = f"vector({embedding_dim})"
+                if existing_type != expected_type:
+                    raise ValueError(
+                        f"Database vector dimension mismatch: Expected '{expected_type}', found '{existing_type}'."
+                    )
 
-    if not table_exists:
-        cur.execute("""
-            CREATE TABLE document_chunks (
-                chunk_id VARCHAR(255) PRIMARY KEY,
-                file_id VARCHAR(255) NOT NULL,
-                file_name VARCHAR(255),
-                text TEXT NOT NULL,
-                page_number INT DEFAULT 1,
-                chunk_index INT DEFAULT 0,
-                embedding vector(384),
-                allowed_users TEXT[] DEFAULT '{}',
-                extra_metadata JSONB DEFAULT '{}'::jsonb,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS document_chunks_embedding_idx 
-            ON document_chunks 
-            USING hnsw (embedding vector_cosine_ops);
-        """)
-        logger.info("Created document_chunks table with vector(384) and HNSW index.")
-
-    conn.commit()
-    cur.close()
-    conn.close()
-    logger.info("PostgreSQL schema initialized successfully.")
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    init_db()
+            # Create feedback table non-destructively
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id TEXT PRIMARY KEY,
+                    query TEXT NOT NULL,
+                    response TEXT NOT NULL,
+                    rating INTEGER NOT NULL,
+                    comments TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            conn.commit()
