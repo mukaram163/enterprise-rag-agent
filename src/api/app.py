@@ -42,7 +42,54 @@ bm25 = None
 rerank = None
 
 
+def build_pipeline():
+    """
+    Factory function to initialize indexer, embeddings, and retrievers.
+    Does NOT start background processes like DriveWatcher.
+    Raises an error immediately if EVAL_MODE=1 and any initialization fails.
+    """
+    eval_mode = os.getenv("EVAL_MODE", "0").lower() in ("1", "true", "yes")
+    try:
+        global indexer, embedder, hybrid_retriever, generator, bm25, rerank
+
+        logger.info("Initializing indexer, embedder, generator, and retrieval components...")
+        indexer = DocumentIndexer(db_connection_string=db_connection_string)
+        embedder = EmbeddingGenerator()
+
+        all_chunks = fetch_document_chunks()
+        bm25 = SparseRetriever(chunks=all_chunks)
+        logger.info(f"BM25 initialized with {len(all_chunks)} chunks from database.")
+
+        try:
+            rerank = CrossEncoderReranker("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            logger.info("Cross-Encoder Reranker successfully loaded.")
+        except Exception as e:
+            if eval_mode:
+                raise RuntimeError(f"EVAL_MODE=1: Reranker initialization failed: {e}") from e
+            logger.warning(f"Failed to initialize CrossEncoderReranker: {e}")
+            rerank = None
+
+        dense_retriever = DenseRetriever(db_connection_string=db_connection_string)
+        hybrid_retriever = HybridRetriever(
+            dense_retriever=dense_retriever, 
+            sparse_retriever=bm25,
+            reranker=rerank
+        )
+
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        generator = GeminiGenerator(api_key=api_key)
+
+        return hybrid_retriever
+    except Exception as e:
+        if eval_mode:
+            raise RuntimeError(f"EVAL_MODE=1: Pipeline initialization failed: {e}") from e
+        logger.error(f"Pipeline initialization failed: {e}")
+        return None
+
+
 def fetch_document_chunks() -> List[DocumentChunk]:
+    if indexer is None:
+        return []
     raw_chunks = indexer.get_all_chunks()
     chunks = []
     for c in raw_chunks:
@@ -61,11 +108,11 @@ def fetch_document_chunks() -> List[DocumentChunk]:
             or (c.get("file_name") if isinstance(c, dict) else getattr(c, "file_name", None))
             or "unknown.pdf"
         )
-        
+
         raw_page = meta.get("page_number")
         if raw_page is None:
             raw_page = c.get("page_number") if isinstance(c, dict) else getattr(c, "page_number", 0)
-            
+
         try:
             page_number = int(raw_page) if raw_page is not None else 0
         except (ValueError, TypeError):
@@ -95,7 +142,6 @@ def extract_used_citations(generated_text: str, chunks: List[DocumentChunk]) -> 
     Parses single and grouped page markers (e.g., [p. 21] or [p. 21, p. 25]) 
     from generated text and maps them to retrieved chunk file names.
     """
-    # Extract all digits following 'p.' within brackets
     raw_matches = re.findall(r'p\.\s*(\d+)', generated_text)
     if not raw_matches:
         return []
@@ -124,35 +170,15 @@ def extract_used_citations(generated_text: str, chunks: List[DocumentChunk]) -> 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global indexer, embedder, hybrid_retriever, generator, drive_watcher, bm25, rerank
+    global drive_watcher
+    eval_mode = os.getenv("EVAL_MODE", "0").lower() in ("1", "true", "yes")
+
     try:
         logger.info("Initializing database schema...")
         create_tables(db_connection_string)
 
-        logger.info("Initializing indexer, embedder, generator, and retrieval components...")
-        indexer = DocumentIndexer(db_connection_string=db_connection_string)
-        embedder = EmbeddingGenerator()
-        
-        all_chunks = fetch_document_chunks()
-        bm25 = SparseRetriever(chunks=all_chunks)
-        logger.info(f"BM25 initialized with {len(all_chunks)} chunks from database.")
-
-        try:
-            rerank = CrossEncoderReranker("cross-encoder/ms-marco-MiniLM-L-6-v2")
-            logger.info("Cross-Encoder Reranker successfully loaded.")
-        except Exception as e:
-            logger.error(f"Failed to initialize CrossEncoderReranker: {e}")
-            rerank = None
-
-        dense_retriever = DenseRetriever(db_connection_string=db_connection_string)
-        hybrid_retriever = HybridRetriever(
-            dense_retriever=dense_retriever, 
-            sparse_retriever=bm25,
-            reranker=rerank
-        )
-        
-        api_key = os.getenv("GEMINI_API_KEY", "")
-        generator = GeminiGenerator(api_key=api_key)
+        # Initialize pipeline using build_pipeline
+        build_pipeline()
 
         def sync_bm25():
             global bm25
@@ -164,8 +190,9 @@ async def lifespan(app: FastAPI):
                     bm25.chunks = updated_chunks
                 logger.info(f"BM25 index re-fitted dynamically with {len(updated_chunks)} total chunks.")
 
+        # DriveWatcher is exclusively managed inside lifespan context
         try:
-            drive_service = getattr(indexer, "drive_service", None)
+            drive_service = getattr(indexer, "drive_service", None) if indexer else None
             drive_watcher = DriveWatcher(
                 drive_service=drive_service,
                 indexer=indexer,
@@ -180,6 +207,8 @@ async def lifespan(app: FastAPI):
 
         logger.info("All dependencies successfully initialized.")
     except Exception as e:
+        if eval_mode:
+            raise RuntimeError(f"EVAL_MODE=1: Startup failed: {e}") from e
         logger.error(f"Failed to initialize dependencies on startup: {e}")
 
     yield
@@ -270,7 +299,7 @@ async def chat_stream(request: ChatRequest):
             status_code=503, 
             detail=f"Dependencies not initialized: {', '.join(missing)}"
         )
-    
+
     query = request.query
 
     try:
@@ -299,7 +328,6 @@ async def chat_stream(request: ChatRequest):
                 payload = json.dumps({"event": "token", "data": token})
                 yield f"data: {payload}\n\n"
 
-            # Parse page markers from full text and emit citations
             final_citations = extract_used_citations(accumulated_response, chunks)
             citation_payload = json.dumps({"event": "citations", "data": final_citations})
             yield f"data: {citation_payload}\n\n"
