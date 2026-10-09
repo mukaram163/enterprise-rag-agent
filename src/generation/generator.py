@@ -32,11 +32,14 @@ class GeminiGenerator:
             formatted_context += f"\n--- Chunk {i} [File: {fname}] [page: {page}] ---\n{text}\n"
 
         return (
-            "You are an enterprise AI assistant. Answer the user's question accurately using ONLY "
-            "the provided retrieved context.\n"
-            "If the answer cannot be determined from the context, state that clearly.\n\n"
+            "You are a strict QA assistant. Answer the query based ONLY on the provided context chunks.\n\n"
             f"Context:\n{formatted_context}\n\n"
-            f"User Question: {query}\n"
+            "INSTRUCTIONS FOR CITATIONS:\n"
+            "1. After stating any fact, requirement, or point, append an inline page marker in the format '[p.N]' "
+            "where N is the exact page number from the corresponding '[page: N]' marker.\n"
+            "2. NEVER cite a page number that is not explicitly present in the provided context.\n"
+            "3. Do not invent page numbers or citations.\n\n"
+            f"Query: {query}\n"
             "Answer:"
         )
 
@@ -90,30 +93,42 @@ class GeminiGenerator:
         return "Error: All API providers (Groq, Gemini, OpenAI) failed or rate limits were exhausted."
 
     async def generate_stream(self, query: str, context_chunks: List[Any]) -> AsyncGenerator[str, None]:
+        import asyncio
         prompt = self._build_prompt(query, context_chunks)
+        eval_mode = os.getenv("EVAL_MODE", "0").lower() in ("1", "true", "yes")
 
         if self.gemini_key:
-            try:
-                from google import genai
-                client = genai.Client(api_key=self.gemini_key)
-                stream_result = client.aio.models.generate_content_stream(
-                    model=self.model_name,
-                    contents=prompt,
-                )
-                if hasattr(stream_result, "__await__"):
-                    stream_result = await stream_result
-
+            from google import genai
+            client = genai.Client(api_key=self.gemini_key)
+            last_err = None
+            for attempt in range(4):
                 has_yielded = False
-                async for chunk in stream_result:
-                    if hasattr(chunk, "text") and chunk.text:
-                        has_yielded = True
-                        yield chunk.text
+                try:
+                    stream_result = client.aio.models.generate_content_stream(
+                        model=self.model_name,
+                        contents=prompt,
+                    )
+                    if hasattr(stream_result, "__await__"):
+                        stream_result = await stream_result
 
-                if has_yielded:
-                    return
-            except Exception as e:
-                logger.warning(f"Gemini streaming failed: {e}. Falling back to sync response.")
+                    async for chunk in stream_result:
+                        if hasattr(chunk, "text") and chunk.text:
+                            has_yielded = True
+                            yield chunk.text
 
+                    if has_yielded:
+                        return
+                except Exception as e:
+                    last_err = e
+                    logger.warning(f"Gemini streaming failed (attempt {attempt + 1}/4): {e}")
+                    if has_yielded:
+                        raise  # tokens already sent: surface an error, never append a second answer
+                    await asyncio.sleep(2 ** attempt)
+
+            if eval_mode:
+                raise RuntimeError(f"Gemini unavailable after retries: {last_err}")
+
+        logger.warning("Falling back to sync response.")
         yield self.generate_response(query, context_chunks)
 
 
