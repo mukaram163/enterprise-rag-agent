@@ -1,0 +1,241 @@
+[
+  {
+    "question": "What is the duration and title of the Medical Laboratory Technology degree program?",
+    "expected_page": 8,
+    "answer": "Based on the provided context:\n\n* **Course Title / Degree Name:** B.Sc Medical Laboratory Technology [p.8] (also listed as B.Sc (Hons.) in Medical Laboratory Technology) [p.1].\n* **Duration:** 4 years (spread over four years with structured training in a recognized department under an approved supervisor) [p.8].",
+    "chunk_pages": [
+      8,
+      1,
+      6,
+      7,
+      12
+    ],
+    "cited_pages": [
+      8,
+      1
+    ],
+    "provider": "gemini-3.8-flash",
+    "retrieval_hit": true,
+    "citation_correct": true,
+    "faithfulness": 1.0,
+    "passed": true,
+    "error": null
+  },
+  {
+    "question": "Which subjects are included in the theoretical component of the second year of the B.Sc MLT program?",
+    "expected_page": 8,
+    "answer": "The theoretical component of the second year of the B.Sc Medical Laboratory Technology program includes the following subjects:\n\n1. Haematology and Blood Banking [p.9]\n2. Histopathology and Cytopathology [p.9]",
+    "chunk_pages": [
+      8,
+      9,
+      29,
+      26,
+      25
+    ],
+    "cited_pages": [
+      9
+    ],
+    "provider": "gemini-3.8-flash",
+    "retrieval_hit": true,
+    "citation_correct": false,
+    "faithfulness": 1.0,
+    "passed": false,
+    "error": null
+  },
+  {
+    "question": "What are the eligibility criteria and documents required for admission to the B.Sc MLT program?",
+    "expected_page": 11,
+    "answer": "Based on the provided context, the eligibility criteria and documents required for admission are as follows:\n\n**Documents Required for Admission:**\n* Completed B.Sc Medical Laboratory Technology application form [p.11]\n* Copy of the Matriculation Certificate [p.11]\n* Copy of the F.Sc / Equivalent Examination Certificate with detailed marks sheet [p.11]\n* Copy of the entry test result card [p.11]\n* 3 passport size photographs [p.11]\n\n**General Requirements:**\n* Securing pass percentage in the entry test [p.11]\n* Qualifying the interview successfully [p.11]\n* Having up to the marks credentials (No. of attempts, any medal or distinction) [p.11]",
+    "chunk_pages": [
+      11,
+      8,
+      5,
+      31,
+      25
+    ],
+    "cited_pages": [
+      11
+    ],
+    "provider": "gemini-3.8-flash",
+    "retrieval_hit": true,
+    "citation_correct": true,
+    "faithfulness": 0.9,
+    "passed": true,
+    "error": null
+  },
+  {
+    "question": "What is the passing percentage in each component of the professional examinations, and how many attempts are allowed for the final examination?",
+    "expected_page": 21,
+    "answer": "Based on the provided context:\n\n* **Passing Percentage:** The passing score is 50% in each component [p. 21] (with candidates having to pass each component separately) [p. 21]. *(Note: For the First Professional Examination, the passing mark for Islamic Studies/Ethics & Pakistan Studies is 33% in each paper separately and 33% in aggregate [p. 23]).*\n* **Attempts Allowed:** The final examination must be cleared in a maximum of 4 attempts [p. 21].",
+    "chunk_pages": [
+      21,
+      32,
+      23,
+      31,
+      29
+    ],
+    "cited_pages": [
+      21,
+      23
+    ],
+    "provider": "gemini-3.8-flash",
+    "retrieval_hit": true,
+    "citation_correct": true,
+    "faithfulness": 1.0,
+    "passed": true,
+    "error": null
+  },
+  {
+    "question": "What is the breakdown of theory and internal assessment marks for Paper-I (Basic Anatomy & Physiology) in the First Professional Examination?",
+    "expected_page": 23,
+    "passed": false,
+    "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "How many short essay questions and MCQs are included in Section I (Haematology) of Paper-I in the Second Professional Examination, and what are their respective marks?",
+    "expected_page": 26,
+    "answer": "In Section I (Haematology) of Paper-I in the Second Professional Examination:\n\n* **Short Essay Questions:** There are 8 short essay questions with no choice, and each carries 5 marks [p. 26].\n* **MCQs:** There are 40 MCQs, and each question carries 01 mark [p. 26].",
+    "chunk_pages": [
+      26,
+      27,
+      29,
+      30,
+      32
+    ],
+    "cited_pages": [
+      26
+    ],
+    "provider": "gemini-3.8-flash",
+    "retrieval_hit": true,
+    "citation_correct": true,
+    "faithfulness": 1.0,
+    "passed": true,
+    "error": null
+  },
+  {
+    "question": "What is the total mark allocation for the Third Professional B.Sc Medical Laboratory Technology Examination across all papers?",
+    "expected_page": 27,
+    "answer": "The total mark allocation for the Third Professional B.Sc Medical Laboratory Technology Examination across all papers is **600 Marks** [p. 28]. \n\nThis total is divided equally across three papers (200 marks each) [p. 28]:\n* **Paper I: Chemical Pathology** – 200 Marks [p. 28]\n* **Paper II: Microbiology Including Parasitology** – 200 Marks [p. 28]\n* **Paper III: Immunology And Serology** – 200 Marks [p. 28]",
+    "chunk_pages": [
+      28,
+      25,
+      31,
+      33,
+      62
+    ],
+    "cited_pages": [
+      28
+    ],
+    "provider": "gemini-3.8-flash",
+    "retrieval_hit": false,
+    "citation_correct": false,
+    "faithfulness": 1.0,
+    "passed": false,
+    "error": null
+  },
+  {
+    "question": "List the recommended textbooks for Basic Anatomy as stated in the curriculum.",
+    "expected_page": 35,
+    "answer": "Based on the curriculum, the recommended books for Basic Anatomy are:\n\n* *Essentials of anatomy and physiology* by Seely, Stephens, and Tate (4th ed) [p.35]\n* *Anatomy & Physiology* by Ross & Wilson [p.35]\n* *General Anatomy* by Laeeq Hussain [p.35]\n* *General Anatomy* by Dr Ghulam Ahmad [p.35]\n* *Anatomy* by D. R. Johnson & K. L. Moore [p.35]\n* *Color Atlas of anatomy* by Mc Minn [p.35]\n* *Lasts Anatomy* by R.M.H Mcminn [p.35]",
+    "chunk_pages": [
+      33,
+      38,
+      35,
+      23,
+      5
+    ],
+    "cited_pages": [
+      35
+    ],
+    "provider": "gemini-3.8-flash",
+    "retrieval_hit": true,
+    "citation_correct": true,
+    "faithfulness": 1.0,
+    "passed": true,
+    "error": null
+  },
+  {
+    "question": "What are the specific topics covered under Cell Injury and Adaptation in General Pathology?",
+    "expected_page": 40,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "What are the components of the brain stem described in the syllabus?",
+    "expected_page": null,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "What are the general components and devices included in a personal computer system as listed under Computer Education?",
+    "expected_page": 50,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "What are the special stains in Haematology listed in the syllabus?",
+    "expected_page": 54,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "Describe the two methods of sectioning tissues detailed in the Histopathology course outlines.",
+    "expected_page": 58,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "What are the sub-topics listed under Urine analysis in Chemical Pathology on Page 61, and how do they continue onto Page 62?",
+    "expected_page": 61,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "What is controlling function in management?",
+    "expected_page": null,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "What are the elective subjects available for selection during the final year of the B.Sc Medical Laboratory Technology program?",
+    "expected_page": 70,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  },
+  {
+    "question": "What are the recommended guidelines for minimum GPA needed to pass each semester in B.Sc MLT?",
+    "expected_page": null,
+    "passed": false,
+    "error": "Gemini unavailable after retries: 429 Too Many Requests. {'message': '{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. Fo",
+    "retrieval_hit": null,
+    "citation_correct": null,
+    "faithfulness": null
+  }
+]

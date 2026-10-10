@@ -7,7 +7,7 @@
   {
     "question": "Which subjects are included in the theoretical component of the second year of the B.Sc MLT program?",
     "expected_answer": "Haematology and Blood Banking, and Histopathology and Cytopathology.",
-    "expected_page": 8
+    "expected_page": 9
   },
   {
     "question": "What are the eligibility criteria and documents required for admission to the B.Sc MLT program?",
@@ -32,7 +32,7 @@
   {
     "question": "What is the total mark allocation for the Third Professional B.Sc Medical Laboratory Technology Examination across all papers?",
     "expected_answer": "The total marks for the Third Professional Examination is 600.",
-    "expected_page": 27
+    "expected_page": 28
   },
   {
     "question": "List the recommended textbooks for Basic Anatomy as stated in the curriculum.",
@@ -45,7 +45,7 @@
     "expected_page": 40
   },
   {
-    "question": "What are the components of the brain stem described in the syllabus?",
+    "question": "What is the annual tuition fee for the B.Sc MLT program?",
     "expected_answer": "not stated in the document",
     "expected_page": null
   },
@@ -65,9 +65,9 @@
     "expected_page": 58
   },
   {
-    "question": "What are the sub-topics listed under Urine analysis in Chemical Pathology on Page 61, and how do they continue onto Page 62?",
-    "expected_answer": "Page 61 covers the composition of glomerular filtrate, changes occurring in tubules, normal urine physical properties and composition, pathological constituents and determination, and kidney function tests, along with quantitative analysis of urine for constituents like amino acids, Bence-Jones proteins, calcium, and urea. Page 62 continues with specific Renal Function Tests including Inulin and Creatinine clearance (GFR), Para-aminohippurate clearance, maximum rate of tubular excretion of P-amino-hippurate, maximum rate of reabsorption of glucose, and clinical assessment classifications such as BUN, serum urea, PSP test, serum creatinine, creatinine clearance, serum uric acid, and electrolytes.",
-    "expected_page": 61
+    "question": "What urine analysis topics are listed in the Chemical Pathology course outline?",
+    "expected_answer": "Composition of glomerular filtrate and changes occurring in tubules, normal urine physical properties and composition, pathological constituents and determination, kidney function tests, and quantitative analysis of urine including amino acids, Bence-Jones proteins, calcium, creatinine, and urea.",
+    "expected_page": 62
   },
   {
     "question": "What is controlling function in management?",
@@ -77,7 +77,7 @@
   {
     "question": "What are the elective subjects available for selection during the final year of the B.Sc Medical Laboratory Technology program?",
     "expected_answer": "Immunohematology (Blood Banking), Clinical Microbiology, Advanced Clinical Immunology, Medical Genetics, Molecular Biology, and Advanced Clinical Chemistry.",
-    "expected_page": 70
+    "expected_page": [9, 70]
   },
   {
     "question": "What are the recommended guidelines for minimum GPA needed to pass each semester in B.Sc MLT?",

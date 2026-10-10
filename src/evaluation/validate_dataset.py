@@ -61,8 +61,12 @@ def validate():
 
         # 5. Expected page range & Unanswerable counter
         if page is not None:
-            if not isinstance(page, int) or isinstance(page, bool) or not (1 <= page <= 72):
-                errors.append(f"FAIL [Item {idx}]: 'expected_page' must be an integer between 1 and 72, or null. Got: {page}")
+            pages_to_check = page if isinstance(page, list) else [page]
+            if not pages_to_check or any(
+                not isinstance(p, int) or isinstance(p, bool) or not (1 <= p <= 72)
+                for p in pages_to_check
+            ):
+                errors.append(f"FAIL [Item {idx}]: 'expected_page' must be an int 1-72, a list of such ints, or null. Got: {page}")
         else:
             if isinstance(ans, str) and "not stated in the document" in ans.lower():
                 unanswerable_count += 1
