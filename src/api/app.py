@@ -4,6 +4,7 @@ import uuid
 import json
 import time
 import logging
+import asyncio
 from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,7 @@ from src.utils.router import classify
 from src.utils.cost_guard import check_ceiling
 from src.utils.rate_limiter import RateLimiter
 from src.utils.injection_guard import check_injection
+from src.utils.pii_filter import redact
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -366,10 +368,14 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         try:
             async for token in generator.generate_stream(query, chunks):
                 accumulated_response += token
-                payload = json.dumps({"event": "token", "data": token})
-                yield f"data: {payload}\n\n"
 
-            final_citations = extract_used_citations(accumulated_response, chunks)
+            safe_text, pii_counts = redact(accumulated_response)
+            for i in range(0, len(safe_text), 40):
+                piece = {"event": "token", "data": safe_text[i:i + 40]}
+                yield f"data: {json.dumps(piece)}\n\n"
+                await asyncio.sleep(0.02)
+
+            final_citations = extract_used_citations(safe_text, chunks)
             citation_payload = json.dumps({"event": "citations", "data": final_citations})
             yield f"data: {citation_payload}\n\n"
 

@@ -10,7 +10,7 @@ PATTERNS = [
     (r"(reveal|show|print|repeat|leak|display)\s+(me\s+)?(your|the)\s+(system\s+)?(prompt|instructions?|rules)", "reveal-prompt"),
     (r"what\s+(is|are)\s+your\s+(system\s+)?(prompt|instructions?)", "reveal-prompt"),
     (r"you\s+are\s+now\s+(a|an|in)\b", "role-override"),
-    (r"\b(act|pretend|behave)\s+as\s+(if\s+you\s+(are|were)\s+)", "role-override"),
+    (r"\b(act|pretend|behave)\s+(as\s+if\s+you\s+(are|were)|(that\s+)?you\s+(are|were))\b", "role-override"),
     (r"\b(developer|debug|dan|jailbreak)\s+mode\b", "mode-switch"),
     (r"(override|bypass|disable)\s+(your\s+|the\s+)?(safety|guardrails?|filters?|restrictions?)", "bypass-safety"),
 ]

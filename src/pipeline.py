@@ -6,6 +6,7 @@ from src.api import app as api
 from src.utils.request_logger import log_request
 from src.utils.router import classify
 from src.utils.cost_guard import check_ceiling
+from src.utils.pii_filter import redact
 
 _ready = False
 
@@ -62,6 +63,8 @@ async def run_rag(query: str, top_k: int = 5) -> Dict[str, Any]:
 
     if answer.startswith("Error: All API providers"):
         raise RuntimeError(answer)
+
+    answer, _ = redact(answer)
 
     citations = api.extract_used_citations(answer, chunks)
     provider = "fallback (not Gemini streaming)" if detector.fell_back else api.generator.model_name
