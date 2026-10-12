@@ -10,9 +10,10 @@ from contextlib import asynccontextmanager
 from src.utils.request_logger import log_request
 from src.utils.router import classify
 from src.utils.cost_guard import check_ceiling
+from src.utils.rate_limiter import RateLimiter
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -37,6 +38,9 @@ db_connection_string = os.getenv(
     "DATABASE_URL", 
     "postgresql://rag_user:rag_password@localhost:5432/enterprise_rag"
 )
+
+session_limiter = RateLimiter(int(os.getenv("RATE_LIMIT_SESSION_PER_HOUR", "20")))
+ip_limiter = RateLimiter(int(os.getenv("RATE_LIMIT_IP_PER_HOUR", "60")))
 
 indexer = None
 embedder = None
@@ -239,6 +243,7 @@ async def serve_index():
 class ChatRequest(BaseModel):
     query: str
     user_id: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class QueryRequest(BaseModel):
@@ -293,7 +298,7 @@ def query_endpoint(req: QueryRequest):
 
 
 @app.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, http_request: Request):
     missing = []
     if not embedder: missing.append("embedder")
     if not hybrid_retriever: missing.append("hybrid_retriever")
@@ -304,6 +309,22 @@ async def chat_stream(request: ChatRequest):
             status_code=503, 
             detail=f"Dependencies not initialized: {', '.join(missing)}"
         )
+
+    ip = http_request.client.host if http_request.client else "unknown"
+    for limiter, key, kind in (
+        (session_limiter, request.session_id, "session"),
+        (ip_limiter, ip, "ip"),
+    ):
+        if not key:
+            continue
+        ok, retry = limiter.check(key)
+        if not ok:
+            logger.warning(f"RATE LIMIT: {kind}={key} blocked, retry in {retry}s")
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many requests. Try again in {retry // 60 + 1} minutes.",
+                headers={"Retry-After": str(retry)},
+            )
 
     start_time = time.perf_counter()
     query = request.query

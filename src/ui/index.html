@@ -149,12 +149,24 @@
             scrollToBottom();
 
             try {
+                let sessionId = sessionStorage.getItem('sessionId');
+                if (!sessionId) {
+                    sessionId = crypto.randomUUID();
+                    sessionStorage.setItem('sessionId', sessionId);
+                }
+
                 const response = await fetch('/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query })
+                    body: JSON.stringify({ query, session_id: sessionId })
                 });
 
+                if (response.status === 429) {
+                    let msg = 'Too many requests. Please try again later.';
+                    try { msg = (await response.json()).detail || msg; } catch (e) {}
+                    botDiv.innerHTML = `<span style="color: #dc2626;">${msg}</span>`;
+                    return;
+                }
                 if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
                 const reader = response.body.getReader();
