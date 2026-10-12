@@ -3,6 +3,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional, List
+from src.utils.pricing import estimate_cost
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,8 @@ def log_request(
 ) -> None:
     try:
         os.makedirs(LOGS_DIR, exist_ok=True)
+        if estimated_cost is None:
+            estimated_cost = estimate_cost(model_used, tokens_in, tokens_out, tokens_thinking)
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "source": source,
