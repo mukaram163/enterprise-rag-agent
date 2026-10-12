@@ -5,6 +5,7 @@ from typing import Any, Dict
 from src.api import app as api
 from src.utils.request_logger import log_request
 from src.utils.router import classify
+from src.utils.cost_guard import check_ceiling
 
 _ready = False
 
@@ -35,6 +36,11 @@ async def run_rag(query: str, top_k: int = 5) -> Dict[str, Any]:
     init()
     start_time = time.perf_counter()
     tier, route_reasons = classify(query)
+    tier, ceiling_note, blocked = check_ceiling(tier)
+    if ceiling_note:
+        route_reasons = route_reasons + [ceiling_note]
+    if blocked:
+        raise RuntimeError("Spending limit reached")
 
     embeddings = api.embedder.generate_embeddings([query])
     if not embeddings:

@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from src.utils.request_logger import log_request
 from src.utils.router import classify
+from src.utils.cost_guard import check_ceiling
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -307,6 +308,11 @@ async def chat_stream(request: ChatRequest):
     start_time = time.perf_counter()
     query = request.query
     tier, route_reasons = classify(query)
+    tier, ceiling_note, blocked = check_ceiling(tier)
+    if ceiling_note:
+        route_reasons = route_reasons + [ceiling_note]
+    if blocked:
+        raise HTTPException(status_code=429, detail="Spending limit reached")
 
     try:
         query_embeddings = embedder.generate_embeddings([query])
