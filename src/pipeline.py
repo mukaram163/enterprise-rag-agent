@@ -1,8 +1,9 @@
-# src/pipeline.py
+import time
 import logging
 from typing import Any, Dict
 
 from src.api import app as api
+from src.utils.request_logger import log_request
 
 _ready = False
 
@@ -31,6 +32,7 @@ def init() -> None:
 
 async def run_rag(query: str, top_k: int = 5) -> Dict[str, Any]:
     init()
+    start_time = time.perf_counter()
 
     embeddings = api.embedder.generate_embeddings([query])
     if not embeddings:
@@ -55,6 +57,22 @@ async def run_rag(query: str, top_k: int = 5) -> Dict[str, Any]:
 
     citations = api.extract_used_citations(answer, chunks)
     provider = "fallback (not Gemini streaming)" if detector.fell_back else api.generator.model_name
+    latency_ms = (time.perf_counter() - start_time) * 1000
+
+    usage = getattr(api.generator, "last_usage", {}) or {}
+    pages_cited = [c["page_number"] for c in citations if isinstance(c, dict) and "page_number" in c]
+
+    log_request(
+        question=query,
+        model_used=provider,
+        tokens_in=usage.get("tokens_in"),
+        tokens_out=usage.get("tokens_out"),
+        tokens_thinking=usage.get("tokens_thinking"),
+        latency_ms=latency_ms,
+        pages_cited=pages_cited,
+        estimated_cost=None,
+        source="eval",
+    )
 
     return {
         "answer": answer,

@@ -15,6 +15,7 @@ class GeminiGenerator:
         self.gemini_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         self.openai_key = os.getenv("OPENAI_API_KEY")
         self.model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        self.last_usage = {"tokens_in": None, "tokens_out": None}
 
     def _build_prompt(self, query: str, context_chunks: List[Any]) -> str:
         formatted_context = ""
@@ -97,12 +98,14 @@ class GeminiGenerator:
         prompt = self._build_prompt(query, context_chunks)
         eval_mode = os.getenv("EVAL_MODE", "0").lower() in ("1", "true", "yes")
 
+        self.last_usage = {"tokens_in": None, "tokens_out": None}
         if self.gemini_key:
             from google import genai
             client = genai.Client(api_key=self.gemini_key)
             last_err = None
             for attempt in range(4):
                 has_yielded = False
+                usage_meta = None
                 try:
                     stream_result = client.aio.models.generate_content_stream(
                         model=self.model_name,
@@ -112,11 +115,18 @@ class GeminiGenerator:
                         stream_result = await stream_result
 
                     async for chunk in stream_result:
+                        if hasattr(chunk, "usage_metadata") and chunk.usage_metadata:
+                            usage_meta = chunk.usage_metadata
                         if hasattr(chunk, "text") and chunk.text:
                             has_yielded = True
                             yield chunk.text
 
                     if has_yielded:
+                        if usage_meta:
+                            self.last_usage = {
+                                "tokens_in": getattr(usage_meta, "prompt_token_count", None),
+                                "tokens_out": getattr(usage_meta, "candidates_token_count", None),
+                            }
                         return
                 except Exception as e:
                     last_err = e

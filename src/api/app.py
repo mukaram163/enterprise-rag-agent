@@ -2,9 +2,12 @@ import os
 import re
 import uuid
 import json
+import time
 import logging
 from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
+
+from src.utils.request_logger import log_request
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -300,6 +303,7 @@ async def chat_stream(request: ChatRequest):
             detail=f"Dependencies not initialized: {', '.join(missing)}"
         )
 
+    start_time = time.perf_counter()
     query = request.query
 
     try:
@@ -331,6 +335,20 @@ async def chat_stream(request: ChatRequest):
             final_citations = extract_used_citations(accumulated_response, chunks)
             citation_payload = json.dumps({"event": "citations", "data": final_citations})
             yield f"data: {citation_payload}\n\n"
+
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            usage = getattr(generator, "last_usage", {}) or {}
+            pages_cited = [c["page_number"] for c in final_citations if isinstance(c, dict) and "page_number" in c]
+            log_request(
+                question=query,
+                model_used=generator.model_name,
+                tokens_in=usage.get("tokens_in"),
+                tokens_out=usage.get("tokens_out"),
+                tokens_thinking=usage.get("tokens_thinking"),
+                latency_ms=latency_ms,
+                pages_cited=pages_cited,
+                estimated_cost=None,
+            )
 
         except Exception as err:
             logger.error(f"Streaming error occurred: {err}")
