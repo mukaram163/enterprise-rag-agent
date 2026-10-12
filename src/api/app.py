@@ -14,6 +14,7 @@ from src.utils.cost_guard import check_ceiling
 from src.utils.rate_limiter import RateLimiter
 from src.utils.injection_guard import check_injection
 from src.utils.pii_filter import redact
+from src.utils.faithfulness_guard import check_faithfulness
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -370,6 +371,14 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                 accumulated_response += token
 
             safe_text, pii_counts = redact(accumulated_response)
+            
+            if os.getenv("FAITHFULNESS_GUARD", "0") == "1":
+                threshold = float(os.getenv("FAITHFULNESS_MIN", "0.5"))
+                score = await check_faithfulness(query, safe_text, [c.text for c in chunks])
+                if score is not None and score < threshold:
+                    logger.warning(f"FAITHFULNESS BLOCK: score={score:.2f} < {threshold} question={query[:80]!r}")
+                    safe_text = "I couldn't verify that answer against the documents, so I'm not showing it. Please rephrase or check the source pages."
+
             for i in range(0, len(safe_text), 40):
                 piece = {"event": "token", "data": safe_text[i:i + 40]}
                 yield f"data: {json.dumps(piece)}\n\n"
@@ -427,7 +436,7 @@ def ingest_endpoint(req: IngestRequest):
 
         return {"status": "success", "processed_chunks": count, "doc_id": req.doc_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_status=500, detail=str(e))
 
 
 @app.post("/feedback")
