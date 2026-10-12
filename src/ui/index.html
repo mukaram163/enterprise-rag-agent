@@ -161,7 +161,7 @@
                     body: JSON.stringify({ query, session_id: sessionId })
                 });
 
-                if (response.status === 429) {
+                if (response.status === 429 || response.status === 400) {
                     let msg = 'Too many requests. Please try again later.';
                     try { msg = (await response.json()).detail || msg; } catch (e) {}
                     botDiv.innerHTML = `<span style="color: #dc2626;">${msg}</span>`;

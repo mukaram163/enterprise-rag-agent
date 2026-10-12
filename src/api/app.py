@@ -11,6 +11,7 @@ from src.utils.request_logger import log_request
 from src.utils.router import classify
 from src.utils.cost_guard import check_ceiling
 from src.utils.rate_limiter import RateLimiter
+from src.utils.injection_guard import check_injection
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -325,6 +326,13 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                 detail=f"Too many requests. Try again in {retry // 60 + 1} minutes.",
                 headers={"Retry-After": str(retry)},
             )
+
+    flagged, rules = check_injection(request.query)
+    if flagged:
+        raise HTTPException(
+            status_code=400,
+            detail="That request looks like an attempt to change my instructions, so I can't process it. Please ask a question about the documents.",
+        )
 
     start_time = time.perf_counter()
     query = request.query
