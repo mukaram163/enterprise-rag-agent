@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
 
 from src.utils.request_logger import log_request
+from src.utils.router import classify
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -305,6 +306,7 @@ async def chat_stream(request: ChatRequest):
 
     start_time = time.perf_counter()
     query = request.query
+    tier, route_reasons = classify(query)
 
     try:
         query_embeddings = embedder.generate_embeddings([query])
@@ -348,6 +350,8 @@ async def chat_stream(request: ChatRequest):
                 latency_ms=latency_ms,
                 pages_cited=pages_cited,
                 estimated_cost=None,
+                tier=tier,
+                route_reasons=route_reasons,
             )
 
         except Exception as err:

@@ -21,11 +21,19 @@ def log_request(
     estimated_cost: Optional[float] = None,
     tokens_thinking: Optional[int] = None,
     source: str = "api",
+    tier: Optional[str] = None,
+    route_reasons: Optional[List[str]] = None,
 ) -> None:
     try:
         os.makedirs(LOGS_DIR, exist_ok=True)
         if estimated_cost is None:
             estimated_cost = estimate_cost(model_used, tokens_in, tokens_out, tokens_thinking)
+        
+        would_cost_pro = None
+        pro_model = os.getenv("GEMINI_PRO_MODEL", "gemini-3.1-pro-preview")
+        if tier is not None:
+            would_cost_pro = estimate_cost(pro_model, tokens_in, tokens_out, tokens_thinking)
+
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "source": source,
@@ -37,6 +45,10 @@ def log_request(
             "latency_ms": round(latency_ms, 2) if latency_ms is not None else None,
             "estimated_cost": estimated_cost,
             "pages_cited": pages_cited,
+            "route_mode": "dry_run",
+            "route_tier": tier,
+            "route_reasons": route_reasons,
+            "would_cost_pro": would_cost_pro,
         }
         with open(LOGS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")

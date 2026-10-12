@@ -4,6 +4,7 @@ from typing import Any, Dict
 
 from src.api import app as api
 from src.utils.request_logger import log_request
+from src.utils.router import classify
 
 _ready = False
 
@@ -33,6 +34,7 @@ def init() -> None:
 async def run_rag(query: str, top_k: int = 5) -> Dict[str, Any]:
     init()
     start_time = time.perf_counter()
+    tier, route_reasons = classify(query)
 
     embeddings = api.embedder.generate_embeddings([query])
     if not embeddings:
@@ -72,6 +74,8 @@ async def run_rag(query: str, top_k: int = 5) -> Dict[str, Any]:
         pages_cited=pages_cited,
         estimated_cost=None,
         source="eval",
+        tier=tier,
+        route_reasons=route_reasons,
     )
 
     return {

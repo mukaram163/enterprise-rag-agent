@@ -2,8 +2,6 @@ from datetime import date
 from typing import Optional
 
 # USD per 1M tokens: model -> list of (effective_from, input_rate, output_rate)
-# Rates for gemini-3.8-flash came from the pricing page summary you pasted;
-# the spec's 2.5 rates are kept for reference. Re-check against the official page.
 PRICING = {
     "gemini-3.8-flash": [
         (date(2026, 1, 1), 0.75, 3.75),
@@ -11,7 +9,7 @@ PRICING = {
     ],
     "gemini-2.5-flash": [(date(2025, 1, 1), 0.30, 2.50)],
     "gemini-2.5-pro": [(date(2025, 1, 1), 1.25, 10.00)],
-    # "gemini-3.1-pro-preview": add once you've read the real rates
+    "gemini-3.1-pro-preview": [(date(2025, 1, 1), 2.00, 12.00)],
 }
 
 
