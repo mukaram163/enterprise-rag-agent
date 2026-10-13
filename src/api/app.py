@@ -15,6 +15,7 @@ from src.utils.rate_limiter import RateLimiter
 from src.utils.injection_guard import check_injection
 from src.utils.pii_filter import redact
 from src.utils.faithfulness_guard import check_faithfulness
+from src.utils.block_log import log_block
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -324,6 +325,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         ok, retry = limiter.check(key)
         if not ok:
             logger.warning(f"RATE LIMIT: {kind}={key} blocked, retry in {retry}s")
+            log_block("rate_limit", f"{kind} limit hit", session=request.session_id, ip=ip)
             raise HTTPException(
                 status_code=429,
                 detail=f"Too many requests. Try again in {retry // 60 + 1} minutes.",
@@ -332,6 +334,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
 
     flagged, rules = check_injection(request.query)
     if flagged:
+        log_block("injection", f"rules={rules} text={request.query[:100]!r}", session=request.session_id, ip=ip)
         raise HTTPException(
             status_code=400,
             detail="That request looks like an attempt to change my instructions, so I can't process it. Please ask a question about the documents.",
@@ -344,6 +347,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
     if ceiling_note:
         route_reasons = route_reasons + [ceiling_note]
     if blocked:
+        log_block("cost_ceiling", "hard limit reached", session=request.session_id, ip=ip)
         raise HTTPException(status_code=429, detail="Spending limit reached")
 
     try:
@@ -371,12 +375,15 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                 accumulated_response += token
 
             safe_text, pii_counts = redact(accumulated_response)
+            if pii_counts:
+                log_block("pii", f"redacted {pii_counts}", session=request.session_id, ip=ip)
             
             if os.getenv("FAITHFULNESS_GUARD", "0") == "1":
                 threshold = float(os.getenv("FAITHFULNESS_MIN", "0.5"))
                 score = await check_faithfulness(query, safe_text, [c.text for c in chunks])
                 if score is not None and score < threshold:
                     logger.warning(f"FAITHFULNESS BLOCK: score={score:.2f} < {threshold} question={query[:80]!r}")
+                    log_block("faithfulness", f"score={score:.2f} question={query[:80]!r}", session=request.session_id, ip=ip)
                     safe_text = "I couldn't verify that answer against the documents, so I'm not showing it. Please rephrase or check the source pages."
 
             for i in range(0, len(safe_text), 40):
@@ -436,7 +443,7 @@ def ingest_endpoint(req: IngestRequest):
 
         return {"status": "success", "processed_chunks": count, "doc_id": req.doc_id}
     except Exception as e:
-        raise HTTPException(status_status=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/feedback")

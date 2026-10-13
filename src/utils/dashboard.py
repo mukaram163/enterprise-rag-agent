@@ -59,6 +59,13 @@ def main():
     by_src = Counter(r.get("source") for r in rows)
     print(f"\nBy source: {dict(by_src)}")
 
+    try:
+        with open("data/logs/blocks.jsonl", "r", encoding="utf-8") as f:
+            kinds = Counter(json.loads(l)["kind"] for l in f if l.strip())
+        print(f"\nSecurity blocks: {dict(kinds) if kinds else 'none'}")
+    except FileNotFoundError:
+        print("\nSecurity blocks: none logged yet")
+
 
 if __name__ == "__main__":
     main()
