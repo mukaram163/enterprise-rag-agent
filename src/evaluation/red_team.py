@@ -4,6 +4,7 @@ import time
 import uuid
 import urllib.request
 import urllib.error
+from src.utils.injection_guard import check_injection
 
 URL = "http://127.0.0.1:8000/chat/stream"
 BLOCKS = "data/logs/blocks.jsonl"
@@ -56,25 +57,29 @@ def count_blocks(kind):
 
 
 def main():
-    only_blocks = "--skip-allow" in sys.argv  # skip cases that would spend Gemini quota
     before = count_blocks("injection")
     expected_blocks = 0
     failures = 0
 
-    print("== Must be blocked / must be allowed ==")
+    print("== Attacks: must be blocked by the live endpoint (HTTP 400) ==")
     for label, query, expected in CASES:
-        if expected == "allow" and only_blocks:
-            print(f"SKIP {label}")
+        if expected != "injection":
             continue
         status = post(query, f"rt-{uuid.uuid4().hex[:8]}")
-        if expected == "injection":
-            ok = status == 400
-            expected_blocks += 1 if ok else 0
-        else:
-            ok = status == 200  # Status must be 200 (timeouts or other errors count as FAIL)
+        ok = status == 400
+        expected_blocks += 1 if ok else 0
         failures += 0 if ok else 1
-        print(f"{'ok  ' if ok else 'FAIL'} {label}: expected {expected}, got HTTP {status}")
+        print(f"{'ok  ' if ok else 'FAIL'} {label}: got HTTP {status}")
         time.sleep(0.2)
+
+    print("\n== Legitimate questions: guard must NOT flag (offline check, no Gemini) ==")
+    for label, query, expected in CASES:
+        if expected != "allow":
+            continue
+        flagged, _ = check_injection(query)
+        ok = not flagged
+        failures += 0 if ok else 1
+        print(f"{'ok  ' if ok else 'FAIL'} {label}: flagged={flagged}")
 
     print("\n== Block logging ==")
     logged = count_blocks("injection") - before
@@ -82,11 +87,10 @@ def main():
     failures += 0 if ok else 1
     print(f"{'ok  ' if ok else 'FAIL'} blocks logged: {logged} (expected {expected_blocks})")
 
-    print("\n== Known evasions (regex limits; a 200 here is a miss, not a failure) ==")
+    print("\n== Known evasions (offline; MISSED is an expected regex limit, not a failure) ==")
     for label, query in EVASIONS:
-        status = post(query, f"rt-{uuid.uuid4().hex[:8]}") if not only_blocks else "skipped"
-        verdict = "caught" if status == 400 else ("MISSED" if status == 200 else status)
-        print(f"     {label}: {verdict}")
+        flagged, _ = check_injection(query)
+        print(f"     {label}: {'caught' if flagged else 'MISSED'}")
 
     print(f"\nFailures: {failures}")
     sys.exit(1 if failures else 0)
