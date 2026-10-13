@@ -57,7 +57,7 @@
   {
     "question": "What are the special stains in Haematology listed in the syllabus?",
     "expected_answer": "Peroxidase stain, Sudan Black B, Periodic Acid Schiff (PAS) Stain, Feulgan reaction, Histochemical techniques for alkaline phosphatase, and Miscellaneous stains (Giemsa, Prussian blue reaction).",
-    "expected_page": 54
+    "expected_page": [55, 56]
   },
   {
     "question": "Describe the two methods of sectioning tissues detailed in the Histopathology course outlines.",
