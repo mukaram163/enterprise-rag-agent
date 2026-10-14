@@ -20,3 +20,4 @@ credentials.json
 venv/
 __pycache__/
 data/logs/
+token_expired.json
