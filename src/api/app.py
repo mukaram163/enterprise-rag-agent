@@ -151,35 +151,32 @@ def fetch_document_chunks() -> List[DocumentChunk]:
     return chunks
 
 
-def extract_used_citations(generated_text: str, chunks: List[DocumentChunk]) -> List[Dict[str, int]]:
-    """
-    Parses single and grouped page markers (e.g., [p. 21] or [p. 21, p. 25]) 
-    from generated text and maps them to retrieved chunk file names.
-    """
-    raw_matches = re.findall(r'p\.\s*(\d+)', generated_text)
-    if not raw_matches:
-        return []
-
-    page_to_file = {}
+def extract_used_citations(generated_text, chunks):
+    valid = {}
     for chunk in chunks:
         fn = getattr(chunk, "file_name", "unknown.pdf")
         pn = getattr(chunk, "page_number", None)
-        if pn is not None and int(pn) not in page_to_file:
-            page_to_file[int(pn)] = fn
+        if pn is not None:
+            valid[(fn, int(pn))] = True
+    by_page = {}
+    for (fn, pn) in valid:
+        by_page.setdefault(pn, fn)
 
-    used_citations = []
-    seen_pages = set()
-
-    for page_str in raw_matches:
-        page_num = int(page_str)
-        if page_num in page_to_file and page_num not in seen_pages:
-            seen_pages.add(page_num)
-            used_citations.append({
-                "file_name": page_to_file[page_num],
-                "page_number": page_num
-            })
-
-    return used_citations
+    used, seen = [], set()
+    # [file.pdf p.21]  (file + page)
+    for fn, pg in re.findall(r'\[([^\]\[]+?\.pdf)\s+p\.\s*(\d+)', generated_text):
+        key = (fn.strip(), int(pg))
+        if key in valid and key not in seen:
+            seen.add(key)
+            used.append({"file_name": key[0], "page_number": key[1]})
+    # [p.21] or [p.21, p.25]  (page only: first file with that page)
+    stripped = re.sub(r'\[[^\]\[]+?\.pdf\s+p\.\s*\d+[^\]]*\]', '', generated_text)
+    for pg in re.findall(r'p\.\s*(\d+)', stripped):
+        pn = int(pg)
+        if pn in by_page and (by_page[pn], pn) not in seen:
+            seen.add((by_page[pn], pn))
+            used.append({"file_name": by_page[pn], "page_number": pn})
+    return used
 
 
 @asynccontextmanager

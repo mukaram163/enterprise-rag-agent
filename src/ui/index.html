@@ -85,7 +85,9 @@
         }
 
         function formatPageMarkers(text) {
-            return text.replace(/\[p\.\s*(\d+)\]/g, '<span class="page-badge">p.$1</span>');
+            return text
+                .replace(/\[[^\]\[]+?\.pdf\s+p\.\s*(\d+)\]/g, '<span class="page-badge">p.$1</span>')
+                .replace(/\[p\.\s*(\d+)\]/g, '<span class="page-badge">p.$1</span>');
         }
 
         async function submitFeedback(query, response, rating, container) {
