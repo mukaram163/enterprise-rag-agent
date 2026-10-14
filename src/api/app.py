@@ -164,7 +164,7 @@ def extract_used_citations(generated_text: str, chunks: List[DocumentChunk]) -> 
     for chunk in chunks:
         fn = getattr(chunk, "file_name", "unknown.pdf")
         pn = getattr(chunk, "page_number", None)
-        if pn is not None:
+        if pn is not None and int(pn) not in page_to_file:
             page_to_file[int(pn)] = fn
 
     used_citations = []
@@ -206,13 +206,24 @@ async def lifespan(app: FastAPI):
 
         # DriveWatcher is exclusively managed inside lifespan context
         try:
-            drive_service = getattr(indexer, "drive_service", None) if indexer else None
+            from src.connectors.google_drive import GoogleDriveConnector
+            drive_conn = GoogleDriveConnector()
+            drive_service = drive_conn.service
+            if indexer:
+                indexer.drive_connector = drive_conn
+                indexer.embedder = embedder
             drive_watcher = DriveWatcher(
                 drive_service=drive_service,
                 indexer=indexer,
                 on_new_file_callback=sync_bm25,
                 poll_interval=15
             )
+            
+            # Preload already processed document IDs from database before starting watcher
+            with psycopg2.connect(db_connection_string) as conn, conn.cursor() as cur:
+                cur.execute("SELECT DISTINCT doc_id FROM document_chunks")
+                drive_watcher._processed_file_ids = {r[0] for r in cur.fetchall()}
+
             if hasattr(drive_watcher, "start"):
                 drive_watcher.start()
             logger.info("DriveWatcher initialized successfully.")
@@ -395,12 +406,16 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             citation_payload = json.dumps({"event": "citations", "data": final_citations})
             yield f"data: {citation_payload}\n\n"
 
+            if getattr(generator, "last_provider", None) not in (None, generator.model_name):
+                notice = {"event": "notice", "data": "Answered by a backup model, so page citations may be missing."}
+                yield f"data: {json.dumps(notice)}\n\n"
+
             latency_ms = (time.perf_counter() - start_time) * 1000
             usage = getattr(generator, "last_usage", {}) or {}
             pages_cited = [c["page_number"] for c in final_citations if isinstance(c, dict) and "page_number" in c]
             log_request(
                 question=query,
-                model_used=generator.model_name,
+                model_used=getattr(generator, "last_provider", None) or generator.model_name,
                 tokens_in=usage.get("tokens_in"),
                 tokens_out=usage.get("tokens_out"),
                 tokens_thinking=usage.get("tokens_thinking"),

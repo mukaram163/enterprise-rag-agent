@@ -71,8 +71,12 @@ class DriveWatcher:
             return
 
         try:
+            folder_id = os.getenv("DRIVE_FOLDER_ID")
+            q = "mimeType='application/pdf' and trashed=false"
+            if folder_id:
+                q += f" and '{folder_id}' in parents"
             results = srv.files().list(
-                q="mimeType='application/pdf' and trashed=false",
+                q=q,
                 fields="files(id, name, modifiedTime)"
             ).execute()
         except Exception as e:

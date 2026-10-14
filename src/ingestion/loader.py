@@ -56,6 +56,30 @@ class GoogleDriveLoader:
             }
         )
 
+    def load_pdf_pages(self, file_id: str, file_name: str) -> List[Document]:
+        """One Document per PDF page, with page_number in the metadata."""
+        try:
+            data = self.connector.download_file_content(file_id)
+            reader = PdfReader(io.BytesIO(data))
+        except Exception as e:
+            logger.error(f"Failed to load PDF '{file_name}' ({file_id}): {e}")
+            return []
+        docs = []
+        for i, page in enumerate(reader.pages, start=1):
+            text = page.extract_text() or ""
+            if text.strip():
+                docs.append(Document(
+                    page_content=text,
+                    metadata={
+                        "source": file_name,
+                        "file_name": file_name,
+                        "file_id": file_id,
+                        "page_number": i,
+                        "mime_type": "application/pdf",
+                    },
+                ))
+        return docs
+
     def load_all_files(self, page_size: int = 10) -> List[Document]:
         """Fetch all supported files from Google Drive into LangChain Documents."""
         files = self.connector.list_files(page_size=page_size)

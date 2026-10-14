@@ -16,6 +16,7 @@ class GeminiGenerator:
         self.openai_key = os.getenv("OPENAI_API_KEY")
         self.model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         self.last_usage = {"tokens_in": None, "tokens_out": None}
+        self.last_provider = None
 
     def _build_prompt(self, query: str, context_chunks: List[Any]) -> str:
         formatted_context = ""
@@ -58,6 +59,7 @@ class GeminiGenerator:
                 )
                 res = llm.invoke(prompt)
                 if res and res.content:
+                    self.last_provider = "groq:openai/gpt-oss-120b"
                     return str(res.content)
             except Exception as e:
                 logger.warning(f"Groq generation failed/rate limited: {e}. Falling back to Gemini...")
@@ -72,6 +74,7 @@ class GeminiGenerator:
                     contents=prompt
                 )
                 if response and response.text:
+                    self.last_provider = self.model_name
                     return response.text
             except Exception as e:
                 logger.warning(f"Gemini generation failed/rate limited: {e}. Falling back to OpenAI...")
@@ -87,10 +90,12 @@ class GeminiGenerator:
                 )
                 res = llm.invoke(prompt)
                 if res and res.content:
+                    self.last_provider = "openai:gpt-4o-mini"
                     return str(res.content)
             except Exception as e:
                 logger.error(f"OpenAI generation failed: {e}")
 
+        self.last_provider = "error"
         return "Error: All API providers (Groq, Gemini, OpenAI) failed or rate limits were exhausted."
 
     async def generate_stream(self, query: str, context_chunks: List[Any]) -> AsyncGenerator[str, None]:
@@ -99,6 +104,7 @@ class GeminiGenerator:
         eval_mode = os.getenv("EVAL_MODE", "0").lower() in ("1", "true", "yes")
 
         self.last_usage = {"tokens_in": None, "tokens_out": None}
+        self.last_provider = self.model_name
         if self.gemini_key:
             from google import genai
             client = genai.Client(api_key=self.gemini_key)
@@ -130,9 +136,16 @@ class GeminiGenerator:
                         return
                 except Exception as e:
                     last_err = e
-                    logger.warning(f"Gemini streaming failed (attempt {attempt + 1}/4): {e}")
+                    msg = str(e)
                     if has_yielded:
-                        raise  # tokens already sent: surface an error, never append a second answer
+                        raise  # tokens already sent: surface an error
+                    if "429" in msg:
+                        logger.warning("Gemini rate-limited (429), daily quota exhausted. Falling back to backup model immediately.")
+                        break
+                    if "400" in msg or "API_KEY_INVALID" in msg:
+                        logger.warning(f"Gemini client error (400 / bad key): {msg[:120]}. Falling back immediately.")
+                        break
+                    logger.warning(f"Gemini transient error (e.g. 503), retrying ({attempt + 1}/4): {msg[:120]}")
                     await asyncio.sleep(2 ** attempt)
 
             if eval_mode:

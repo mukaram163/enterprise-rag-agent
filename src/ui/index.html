@@ -203,6 +203,9 @@
                                 } else if (payload.event === 'error') {
                                     botDiv.innerHTML = `<span style="color: #dc2626;">${payload.data || "Something went wrong, try again"}</span>`;
                                     scrollToBottom();
+                                } else if (payload.event === 'notice') {
+                                    botDiv.insertAdjacentHTML('beforeend', `<div style="color:#d97706;font-size:12px;margin-top:8px;">${payload.data}</div>`);
+                                    scrollToBottom();
                                 }
                             } catch (e) {
                                 console.error('Failed to parse SSE payload:', e, line);
