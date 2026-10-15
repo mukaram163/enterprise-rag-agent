@@ -21,6 +21,25 @@ def normalize_citations(text: str) -> str:
     return text.replace("【", "[").replace("】", "]")
 
 
+async def ask_with_session(session, tools, question: str) -> str:
+    llm = get_llm().bind_tools(tools)
+    messages = [SystemMessage(content=SYSTEM), HumanMessage(content=question)]
+    calls = 0
+    while True:
+        reply = await llm.ainvoke(messages)
+        messages.append(reply)
+        if not reply.tool_calls or calls >= MAX_TOOL_CALLS:
+            return normalize_citations(reply.content)
+        for tc in reply.tool_calls:
+            calls += 1
+            result = await session.call_tool(tc["name"], tc["args"])
+            if result.isError:
+                raise RuntimeError(f"Tool error: {result.content}")
+            text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
+            print(f"[tool call {calls}] {tc['name']}({tc['args']}) -> {len(text)} chars")
+            messages.append(ToolMessage(content=text, tool_call_id=tc["id"]))
+
+
 async def ask(question: str) -> str:
     params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"])
     async with stdio_client(params) as (read, write):
@@ -33,20 +52,7 @@ async def ask(question: str) -> str:
                     "parameters": t.inputSchema}}
                 for t in mcp_tools
             ]
-            llm = get_llm().bind_tools(tools)
-            messages = [SystemMessage(content=SYSTEM), HumanMessage(content=question)]
-            calls = 0
-            while True:
-                reply = await llm.ainvoke(messages)
-                messages.append(reply)
-                if not reply.tool_calls or calls >= MAX_TOOL_CALLS:
-                    return normalize_citations(reply.content)
-                for tc in reply.tool_calls:
-                    calls += 1
-                    result = await session.call_tool(tc["name"], tc["args"])
-                    text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
-                    print(f"[tool call {calls}] {tc['name']}({tc['args']}) -> {len(text)} chars")
-                    messages.append(ToolMessage(content=text, tool_call_id=tc["id"]))
+            return await ask_with_session(session, tools, question)
 
 
 if __name__ == "__main__":
