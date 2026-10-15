@@ -10,10 +10,15 @@ from src.agents.llm import get_llm
 SYSTEM = (
     "You answer questions using ONLY the search_documents tool. "
     "Call it, then answer from the returned chunks. After each fact add its citation "
-    "marker exactly as given in the chunk's 'citation' field, e.g. [file.pdf p.21]. "
+    "marker exactly as given in the chunk's 'citation' field using plain square brackets only (e.g. [file.pdf p.21]). "
+    "Never use full-width brackets. "
     "If the chunks do not contain the answer, say so and cite nothing."
 )
 MAX_TOOL_CALLS = 2
+
+
+def normalize_citations(text: str) -> str:
+    return text.replace("【", "[").replace("】", "]")
 
 
 async def ask(question: str) -> str:
@@ -35,7 +40,7 @@ async def ask(question: str) -> str:
                 reply = await llm.ainvoke(messages)
                 messages.append(reply)
                 if not reply.tool_calls or calls >= MAX_TOOL_CALLS:
-                    return reply.content
+                    return normalize_citations(reply.content)
                 for tc in reply.tool_calls:
                     calls += 1
                     result = await session.call_tool(tc["name"], tc["args"])
