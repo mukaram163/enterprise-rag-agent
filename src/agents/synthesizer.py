@@ -1,0 +1,42 @@
+import re
+from typing import Dict, List
+
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from src.agents.llm import get_llm
+from src.agents.single_agent import normalize_citations
+
+CITE = re.compile(r"\[[^\]\[]+?\.pdf\s+p\.\s*\d+\]")
+
+SYSTEM = (
+    "You merge research notes into one clear answer to the user's question. "
+    "Use ONLY facts in the notes. Keep every fact's citation marker exactly as written in the notes, "
+    "e.g. [file.pdf p.25], with plain square brackets. Never invent a citation or a fact. "
+    "If a note says the information was not found, say so for that part. Be concise."
+)
+
+
+def allowed_citations(sub_results: List[Dict]) -> set:
+    return {m for r in sub_results for m in CITE.findall(normalize_citations(r["answer"]))}
+
+
+def strip_unknown_citations(text: str, allowed: set) -> str:
+    def keep(m):
+        if m.group(0) in allowed:
+            return m.group(0)
+        print(f"[synth] dropped unknown citation: {m.group(0)!r}")
+        return ""
+    return CITE.sub(keep, text)
+
+
+async def synthesize(question: str, sub_results: List[Dict]) -> str:
+    notes = "\n\n".join(
+        f"NOTE {i}. Sub-question: {r['sub_question']}\n{normalize_citations(r['answer'])}"
+        for i, r in enumerate(sub_results, 1)
+    )
+    reply = await get_llm().ainvoke([
+        SystemMessage(content=SYSTEM),
+        HumanMessage(content=f"Question: {question}\n\n{notes}\n\nWrite the final answer."),
+    ])
+    text = normalize_citations(reply.content)
+    return strip_unknown_citations(text, allowed_citations(sub_results))

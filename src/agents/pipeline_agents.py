@@ -32,7 +32,16 @@ async def research_sequential(question: str):
 
 
 if __name__ == "__main__":
+    from src.agents.synthesizer import synthesize, allowed_citations, CITE
     q = " ".join(sys.argv[1:]) or "Compare the passing rules and total marks of the Second and Final Professional exams."
-    subs, res = asyncio.run(research_sequential(q))
-    for r in res:
-        print(f"\n## {r['sub_question']}  ({r['seconds']}s)\n{r['answer']}")
+
+    async def run():
+        subs, res = await research_sequential(q)
+        final = await synthesize(q, res)
+        return res, final
+
+    res, final = asyncio.run(run())
+    print("\n=== FINAL ANSWER ===\n" + final)
+    used = set(CITE.findall(final))
+    print("\nCITATIONS KEPT:", sorted(used))
+    print("CITATIONS AVAILABLE:", sorted(allowed_citations(res)))

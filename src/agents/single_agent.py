@@ -1,4 +1,5 @@
 import asyncio
+import re
 import sys
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
@@ -18,7 +19,10 @@ MAX_TOOL_CALLS = 2
 
 
 def normalize_citations(text: str) -> str:
-    return text.replace("【", "[").replace("】", "]")
+    text = text.replace("【", "[").replace("】", "]")
+    text = re.sub(r"[\u200b\u200c\u200d\u2060\ufeff]", "", text)  # zero-width characters
+    text = text.replace("\u00a0", " ")                            # non-breaking space
+    return text
 
 
 async def ask_with_session(session, tools, question: str) -> str:
