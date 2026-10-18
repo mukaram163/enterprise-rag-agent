@@ -16,17 +16,25 @@ SYSTEM = (
 )
 
 
+def _key(citation: str) -> str:
+    # compare citations ignoring upper/lower case and spaces
+    return re.sub(r"\s+", "", citation).lower()
+
+
 def allowed_citations(sub_results: List[Dict]) -> set:
     return {m for r in sub_results for m in CITE.findall(normalize_citations(r["answer"]))}
 
 
 def strip_unknown_citations(text: str, allowed: set) -> str:
-    def keep(m):
-        if m.group(0) in allowed:
-            return m.group(0)
+    lookup = {_key(c): c for c in allowed}  # normalized -> exact original spelling
+
+    def fix(m):
+        original = lookup.get(_key(m.group(0)))
+        if original:
+            return original  # known citation: restore the correct spelling
         print(f"[synth] dropped unknown citation: {m.group(0)!r}")
         return ""
-    return CITE.sub(keep, text)
+    return CITE.sub(fix, text)
 
 
 async def synthesize(question: str, sub_results: List[Dict]) -> str:
