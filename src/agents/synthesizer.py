@@ -12,7 +12,9 @@ SYSTEM = (
     "You merge research notes into one clear answer to the user's question. "
     "Use ONLY facts in the notes. Keep every fact's citation marker exactly as written in the notes, "
     "e.g. [file.pdf p.25], with plain square brackets. Never invent a citation or a fact. "
-    "If a note says the information was not found, say so for that part. Be concise."
+    "If a note says the information was not found, say so for that part. "
+    "If a note says the research FAILED because of a technical error, say that part could not be "
+    "researched right now; never claim the documents lack it. Be concise."
 )
 
 
@@ -37,9 +39,15 @@ def strip_unknown_citations(text: str, allowed: set) -> str:
     return CITE.sub(fix, text)
 
 
+def _note_text(r: Dict) -> str:
+    if r["answer"].startswith("ERROR:"):
+        return "RESEARCH FAILED because of a technical error. No information is available for this part."
+    return normalize_citations(r["answer"])
+
+
 async def synthesize(question: str, sub_results: List[Dict]) -> str:
     notes = "\n\n".join(
-        f"NOTE {i}. Sub-question: {r['sub_question']}\n{normalize_citations(r['answer'])}"
+        f"NOTE {i}. Sub-question: {r['sub_question']}\n{_note_text(r)}"
         for i, r in enumerate(sub_results, 1)
     )
     reply = await get_llm().ainvoke([

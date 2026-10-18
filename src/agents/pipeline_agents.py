@@ -1,4 +1,5 @@
 import asyncio
+import re
 import sys
 import time
 
@@ -8,24 +9,42 @@ from mcp.client.stdio import stdio_client
 from src.agents.planner import plan
 from src.agents.single_agent import ask_with_session
 
-AGENT_TIMEOUT = 60  # seconds per research agent
+AGENT_TIMEOUT = 150  # seconds per research agent (rate-limit waits count)
+MAX_SUBQUESTIONS = 5  # the planner can never create more agents than this
 DEFAULT_Q = "What are the attempt limits for each professional exam, and what attendance is required for the final?"
+
+
+def _retry_wait(e) -> float:
+    # the API says "Please try again in 25.1s": wait that long plus a little (default 10s)
+    m = re.search(r"try again in ([\d.]+)s", str(e))
+    return float(m.group(1)) + 1 if m else 10
 
 
 async def _one(session, tools, sq, sem):
     async with sem:
         t0 = time.perf_counter()  # timer starts after waiting for a free slot
-        try:
-            ans = await asyncio.wait_for(ask_with_session(session, tools, sq), AGENT_TIMEOUT)
-        except asyncio.TimeoutError:
-            ans = f"ERROR: timed out after {AGENT_TIMEOUT}s"
-        except Exception as e:
-            ans = f"ERROR: {e}"
+        ans = None
+        for attempt in (1, 2, 3):
+            try:
+                ans = await asyncio.wait_for(ask_with_session(session, tools, sq), AGENT_TIMEOUT)
+                break
+            except asyncio.TimeoutError:
+                ans = f"ERROR: timed out after {AGENT_TIMEOUT}s"
+                print(f"[agent failed] {sq!r}: {ans}")
+                break  # a slow agent is not retried
+            except Exception as e:
+                ans = f"ERROR: {e!r}"
+                print(f"[agent failed] attempt {attempt} for {sq!r}: {str(e)[:150]}")
+                if attempt < 3:
+                    await asyncio.sleep(_retry_wait(e))  # wait as long as the API asks, then retry
     return {"sub_question": sq, "answer": ans, "seconds": round(time.perf_counter() - t0, 1)}
 
 
 async def research_parallel(question: str, concurrency: int = 2, subs=None, verbose: bool = False):
     subs = subs or await plan(question)
+    if len(subs) > MAX_SUBQUESTIONS:
+        print(f"[agents] planner made {len(subs)} sub-questions, keeping the first {MAX_SUBQUESTIONS}")
+        subs = subs[:MAX_SUBQUESTIONS]
     sem = asyncio.Semaphore(concurrency)
     params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"])
     async with stdio_client(params) as (read, write):
@@ -51,13 +70,15 @@ if __name__ == "__main__":
     from src.agents.synthesizer import synthesize, CITE
     from src.agents.single_agent import ask
 
-    q = " ".join(sys.argv[1:]) or DEFAULT_Q
+    bench = "--bench" in sys.argv
+    q = " ".join(a for a in sys.argv[1:] if a != "--bench") or DEFAULT_Q
 
     async def run():
         single = await ask(q)
         subs = await plan(q)
-        await research_parallel(q, concurrency=1, subs=subs, verbose=True)  # one at a time
-        _, res = await research_parallel(q, concurrency=2, subs=subs, verbose=True)  # two at a time
+        if bench:  # compare one-at-a-time vs two-at-a-time (doubles the API calls)
+            await research_parallel(q, concurrency=1, subs=subs, verbose=True)
+        _, res = await research_parallel(q, concurrency=2, subs=subs, verbose=True)
         multi = await synthesize(q, res)
         return single, subs, res, multi
 
@@ -65,7 +86,8 @@ if __name__ == "__main__":
     print("\n=== SINGLE AGENT ===\n" + single)
     print("\nSUB-QUESTIONS:", subs)
     for r in res:
-        print(f"  agent took {r['seconds']}s: {r['sub_question']}")
+        flag = "  [FAILED]" if r["answer"].startswith("ERROR:") else ""
+        print(f"  agent took {r['seconds']}s{flag}: {r['sub_question']}")
     print("\n=== MULTI AGENT ===\n" + multi)
     print("\nSINGLE CITED:", sorted(set(CITE.findall(single))))
     print("MULTI CITED: ", sorted(set(CITE.findall(multi))))

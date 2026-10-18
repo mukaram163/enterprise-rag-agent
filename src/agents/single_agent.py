@@ -15,13 +15,36 @@ SYSTEM = (
     "Never use full-width brackets. "
     "If the chunks do not contain the answer, say so and cite nothing."
 )
+FINAL_NUDGE = (
+    "You have used all your searches. Answer now using ONLY the chunks you already retrieved, "
+    "with citation markers. If they do not contain the answer, say so and cite nothing."
+)
 MAX_TOOL_CALLS = 2
+MAX_TOP_K = 6  # keep search results small: fewer tokens per model call
+
+CITE_FIND = re.compile(r"\[[^\]\[]+?\.pdf\s+p\.\s*\d+\]", re.IGNORECASE)
+SEEN_CITATIONS = {}  # loose key -> exact citation text the search tool returned
+
+
+def _loose(citation: str) -> str:
+    # compare citations ignoring case, spaces and every kind of dash
+    return re.sub(r"[\s\-\u2010\u2011\u2012\u2013\u2014\u2212_]+", "", citation).lower()
 
 
 def normalize_citations(text: str) -> str:
     text = text.replace("【", "[").replace("】", "]")
     text = re.sub(r"[\u200b\u200c\u200d\u2060\ufeff]", "", text)  # zero-width characters
     text = text.replace("\u00a0", " ")                            # non-breaking space
+    # rewrite look-alike citations to the exact spelling the search tool returned
+    text = CITE_FIND.sub(lambda m: SEEN_CITATIONS.get(_loose(m.group(0)), m.group(0)), text)
+    # collapse the same citation written twice in a row
+    text = re.sub(r"(\[[^\]\[]+?\.pdf\s+p\.\s*\d+\])(?:\s*\1)+", r"\1", text)
+    return text
+
+
+def _done(text: str) -> str:
+    text = normalize_citations(text)
+    print(f"[agent answer] {text[:100]!r}")
     return text
 
 
@@ -31,17 +54,31 @@ async def ask_with_session(session, tools, question: str) -> str:
     calls = 0
     while True:
         reply = await llm.ainvoke(messages)
+        if not reply.tool_calls:
+            return _done(reply.content)
+        if calls >= MAX_TOOL_CALLS:
+            break  # search budget used up
         messages.append(reply)
-        if not reply.tool_calls or calls >= MAX_TOOL_CALLS:
-            return normalize_citations(reply.content)
         for tc in reply.tool_calls:
+            if calls >= MAX_TOOL_CALLS:
+                messages.append(ToolMessage(content="Skipped: search limit reached.", tool_call_id=tc["id"]))
+                continue
             calls += 1
-            result = await session.call_tool(tc["name"], tc["args"])
+            args = dict(tc["args"])
+            if "top_k" in args:
+                args["top_k"] = min(int(args["top_k"]), MAX_TOP_K)
+            result = await session.call_tool(tc["name"], args)
             if result.isError:
                 raise RuntimeError(f"Tool error: {result.content}")
             text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
-            print(f"[tool call {calls}] {tc['name']}({tc['args']}) -> {len(text)} chars")
+            for c in CITE_FIND.findall(text):
+                SEEN_CITATIONS.setdefault(_loose(c), c)
+            print(f"[tool call {calls}] {tc['name']}({args}) -> {len(text)} chars")
             messages.append(ToolMessage(content=text, tool_call_id=tc["id"]))
+    # no searches left: force an answer from what was already retrieved
+    messages.append(HumanMessage(content=FINAL_NUDGE))
+    final = await get_llm().ainvoke(messages)
+    return _done(final.content)
 
 
 async def ask(question: str) -> str:
