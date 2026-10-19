@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 import sys
 import time
@@ -8,9 +9,11 @@ from mcp.client.stdio import stdio_client
 
 from src.agents.planner import plan
 from src.agents.single_agent import ask_with_session
+from src.agents.usage import reset_run, run_tokens
 
 AGENT_TIMEOUT = 150  # seconds per research agent (rate-limit waits count)
 MAX_SUBQUESTIONS = 5  # the planner can never create more agents than this
+MAX_RUN_TOKENS = int(os.getenv("MAX_RUN_TOKENS", "60000"))  # no new agent starts once a run used this many tokens
 DEFAULT_Q = "What are the attempt limits for each professional exam, and what attendance is required for the final?"
 
 
@@ -25,6 +28,10 @@ async def _one(session, tools, sq, sem):
         t0 = time.perf_counter()  # timer starts after waiting for a free slot
         ans = None
         for attempt in (1, 2, 3):
+            if run_tokens() >= MAX_RUN_TOKENS:
+                ans = "ERROR: token budget reached for this run"
+                print(f"[agent skipped] {sq!r}: {ans}")
+                break
             try:
                 ans = await asyncio.wait_for(ask_with_session(session, tools, sq), AGENT_TIMEOUT)
                 break
@@ -41,6 +48,7 @@ async def _one(session, tools, sq, sem):
 
 
 async def research_parallel(question: str, concurrency: int = 2, subs=None, verbose: bool = False):
+    reset_run()  # token counters start fresh for every research run
     subs = subs or await plan(question)
     if len(subs) > MAX_SUBQUESTIONS:
         print(f"[agents] planner made {len(subs)} sub-questions, keeping the first {MAX_SUBQUESTIONS}")

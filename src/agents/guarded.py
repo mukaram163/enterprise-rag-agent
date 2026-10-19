@@ -40,3 +40,5 @@ async def guarded_research(question: str, session: str = "agent-cli") -> str:
 if __name__ == "__main__":
     q = " ".join(sys.argv[1:]) or DEFAULT_Q
     print(asyncio.run(guarded_research(q)))
+    from src.agents.usage import run_summary
+    print(f"\n[usage] {run_summary()}")

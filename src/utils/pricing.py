@@ -9,6 +9,7 @@ PRICING = {
     ],
     "gemini-2.5-flash": [(date(2025, 1, 1), 0.30, 2.50)],
     "gemini-2.5-pro": [(date(2025, 1, 1), 1.25, 10.00)],
+    "openai/gpt-oss-120b": [(date(2025, 1, 1), 0.15, 0.60)],  # Groq list price, Oct 2026
     "gemini-3.1-pro-preview": [(date(2025, 1, 1), 2.00, 12.00)],
 }
 
