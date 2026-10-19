@@ -3,6 +3,8 @@ from typing import Any, Dict, List
 from mcp.server.fastmcp import FastMCP
 
 from src import pipeline
+from src.utils.chunk_guard import filter_chunks
+from src.utils.chunk_guard import filter_chunks
 
 mcp = FastMCP("rag-documents")
 
@@ -18,6 +20,8 @@ def search_documents(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     chunks = api.hybrid_retriever.search(
         query=query, query_vector=emb[0], top_k=top_k, user_id=None
     )
+    chunks, _removed = filter_chunks(chunks)  # drop chunks that try to instruct the AI
+    chunks, _removed = filter_chunks(chunks)  # drop chunks that try to instruct the AI
     return [
         {
             "text": c.text,
