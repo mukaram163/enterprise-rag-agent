@@ -27,13 +27,14 @@ async def _one(session, tools, sq, sem):
     async with sem:
         t0 = time.perf_counter()  # timer starts after waiting for a free slot
         ans = None
+        trace = []  # which searches this agent ran
         for attempt in (1, 2, 3):
             if run_tokens() >= MAX_RUN_TOKENS:
                 ans = "ERROR: token budget reached for this run"
                 print(f"[agent skipped] {sq!r}: {ans}")
                 break
             try:
-                ans = await asyncio.wait_for(ask_with_session(session, tools, sq), AGENT_TIMEOUT)
+                ans = await asyncio.wait_for(ask_with_session(session, tools, sq, trace), AGENT_TIMEOUT)
                 break
             except asyncio.TimeoutError:
                 ans = f"ERROR: timed out after {AGENT_TIMEOUT}s"
@@ -44,7 +45,7 @@ async def _one(session, tools, sq, sem):
                 print(f"[agent failed] attempt {attempt} for {sq!r}: {str(e)[:150]}")
                 if attempt < 3:
                     await asyncio.sleep(_retry_wait(e))  # wait as long as the API asks, then retry
-    return {"sub_question": sq, "answer": ans, "seconds": round(time.perf_counter() - t0, 1)}
+    return {"sub_question": sq, "answer": ans, "seconds": round(time.perf_counter() - t0, 1), "tool_calls": trace}
 
 
 async def research_parallel(question: str, concurrency: int = 2, subs=None, verbose: bool = False):

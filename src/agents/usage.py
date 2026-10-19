@@ -61,3 +61,8 @@ class UsageCallback(BaseCallbackHandler):
         latency = (time.perf_counter() - t0) * 1000 if t0 is not None else None
         log_request(question=prompt, model_used=self.model_name, tokens_in=tin, tokens_out=tout,
                     latency_ms=latency, pages_cited=[], source="agent")
+
+
+def run_totals() -> dict:
+    with _lock:
+        return dict(_run)

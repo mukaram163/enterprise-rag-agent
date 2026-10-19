@@ -50,7 +50,7 @@ def _done(text: str) -> str:
     return text
 
 
-async def ask_with_session(session, tools, question: str) -> str:
+async def ask_with_session(session, tools, question: str, trace=None) -> str:
     llm = get_llm().bind_tools(tools)
     messages = [SystemMessage(content=SYSTEM), HumanMessage(content=question)]
     calls = 0
@@ -76,6 +76,8 @@ async def ask_with_session(session, tools, question: str) -> str:
             for c in CITE_FIND.findall(text):
                 SEEN_CITATIONS.setdefault(_loose(c), c)
             print(f"[tool call {calls}] {tc['name']}({args}) -> {len(text)} chars")
+            if trace is not None:
+                trace.append({"tool": tc["name"], "query": args.get("query"), "top_k": args.get("top_k"), "chars": len(text)})
             messages.append(ToolMessage(content=text, tool_call_id=tc["id"]))
     # no searches left: force an answer from what was already retrieved
     messages.append(HumanMessage(content=FINAL_NUDGE))
