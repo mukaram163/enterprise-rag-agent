@@ -58,7 +58,7 @@ class DocumentIndexer:
 
     def get_all_chunks(self) -> List[Dict[str, Any]]:
         """Retrieves all stored chunks from document_chunks table."""
-        sql = "SELECT id, text, metadata FROM document_chunks;"
+        sql = "SELECT id, text, metadata, allowed_users FROM document_chunks;"
         with psycopg2.connect(self.db_connection_string) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql)
@@ -78,7 +78,8 @@ class DocumentIndexer:
             all_chunks.append({
                 "id": row[0],
                 "text": row[1],
-                "metadata": meta
+                "metadata": meta,
+                "allowed_users": list(row[3] or []),
             })
         return all_chunks
 
