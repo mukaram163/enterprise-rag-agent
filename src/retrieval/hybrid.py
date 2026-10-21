@@ -11,10 +11,11 @@ EVAL_MODE = os.getenv("EVAL_MODE", "0").lower() in ("1", "true", "yes")
 
 
 class HybridRetriever:
-    def __init__(self, dense_retriever=None, sparse_retriever=None, reranker=None):
+    def __init__(self, dense_retriever=None, sparse_retriever=None, reranker=None, access_checker=None):
         self.dense_retriever = dense_retriever
         self.sparse_retriever = sparse_retriever
         self.reranker = reranker
+        self.access_checker = access_checker  # final permission check on every search
         
         # Fallback initialization if no reranker instance is explicitly provided
         if self.reranker is None:
@@ -64,7 +65,7 @@ class HybridRetriever:
             metadata=meta
         )
 
-    def search(self, query: str, query_vector: Optional[List[float]] = None, top_k: int = 5, user_id: Optional[str] = None) -> List[DocumentChunk]:
+    def _search(self, query: str, query_vector: Optional[List[float]] = None, top_k: int = 5, user_id: Optional[str] = None) -> List[DocumentChunk]:
         # Lazy initialization of default retrievers if missing
         if self.dense_retriever is None:
             from src.retrieval.dense import DenseRetriever
@@ -150,3 +151,9 @@ class HybridRetriever:
             print("==========================================\n")
 
         return reranked_chunks
+
+    def search(self, query: str, query_vector: Optional[List[float]] = None, top_k: int = 5, user_id: Optional[str] = None) -> List[DocumentChunk]:
+        chunks = self._search(query=query, query_vector=query_vector, top_k=top_k, user_id=user_id)
+        if self.access_checker is not None:
+            chunks = self.access_checker(chunks, user_id)  # drop anything this user may no longer read
+        return chunks

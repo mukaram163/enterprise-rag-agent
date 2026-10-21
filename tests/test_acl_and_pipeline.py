@@ -118,3 +118,22 @@ def test_hybrid_defaults_to_anonymous():
     hybrid = HybridRetriever(dense_retriever=dense, sparse_retriever=sparse, reranker=PassThroughReranker())
     hybrid.search(query="info", query_vector=[0.1], top_k=3)
     assert dense.seen == [None] and sparse.seen == [None]
+
+
+class OneChunkRetriever:
+    def search(self, *args, user_id=None, **kwargs):
+        return [{"id": "x1", "doc_id": "d", "text": "some text", "file_name": "a.pdf", "page_number": 1}]
+
+
+def test_hybrid_applies_final_access_check():
+    """A permission revoked after the index was built must still be enforced at the end of every search."""
+    seen = {}
+
+    def checker(chunks, user_id):
+        seen["user"] = user_id
+        return [c for c in chunks if c.id != "x1"]
+
+    hybrid = HybridRetriever(dense_retriever=OneChunkRetriever(), sparse_retriever=RecordingRetriever(),
+                             reranker=PassThroughReranker(), access_checker=checker)
+    assert hybrid.search(query="q", query_vector=[0.1], top_k=3, user_id="alice@example.com") == []
+    assert seen["user"] == "alice@example.com"

@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
 
 from src.utils.request_logger import log_request
+from src.retrieval.acl_guard import verify_access
 from src.utils.router import classify
 from src.utils.cost_guard import check_ceiling
 from src.utils.rate_limiter import RateLimiter
@@ -87,7 +88,8 @@ def build_pipeline():
         hybrid_retriever = HybridRetriever(
             dense_retriever=dense_retriever, 
             sparse_retriever=bm25,
-            reranker=rerank
+            reranker=rerank,
+            access_checker=lambda chunks, user_id: verify_access(db_connection_string, chunks, user_id),
         )
 
         api_key = os.getenv("GEMINI_API_KEY", "")
