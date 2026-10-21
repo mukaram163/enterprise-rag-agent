@@ -17,7 +17,7 @@ CEILING_MSG = "The spending limit has been reached, so I can't run new research 
 DEFAULT_Q = "What are the attempt limits for each professional exam, and what attendance is required for the final?"
 
 
-async def guarded_research(question: str, session: str = "agent-cli") -> str:
+async def guarded_research(question: str, session: str = "agent-cli", user_id: str | None = None) -> str:
     reset_run()
     started = datetime.now(timezone.utc).isoformat()
     t0 = time.perf_counter()
@@ -26,18 +26,19 @@ async def guarded_research(question: str, session: str = "agent-cli") -> str:
     flagged, rules = check_injection(question)
     if flagged:
         log_block("injection", f"rules={rules} text={question[:100]!r}", session=session, ip="local")
-        write_trace(question, "blocked", started, time.perf_counter() - t0, reason=f"injection {rules}")
+        write_trace(question, "blocked", started, time.perf_counter() - t0,
+                    reason=f"injection {rules}", user=user_id)
         return BLOCKED_MSG
 
     # 2. cost ceiling: the same one the API uses
     _, note, blocked = check_ceiling("flash")
     if blocked:
         log_block("cost_ceiling", note, session=session, ip="local")
-        write_trace(question, "blocked", started, time.perf_counter() - t0, reason=note)
+        write_trace(question, "blocked", started, time.perf_counter() - t0, reason=note, user=user_id)
         return CEILING_MSG
 
-    # 3. plan -> research in parallel -> synthesize
-    subs, results = await research_parallel(question)
+    # 3. plan -> research in parallel (as this user) -> synthesize
+    subs, results = await research_parallel(question, user_id=user_id)
     answer = await synthesize(question, results)
 
     # 4. output guardrail: redact personal information
@@ -47,11 +48,17 @@ async def guarded_research(question: str, session: str = "agent-cli") -> str:
 
     all_ok = all(not r["answer"].startswith("ERROR:") for r in results)
     write_trace(question, "ok" if all_ok else "partial", started, time.perf_counter() - t0,
-                subs=subs, results=results, answer=safe)
+                subs=subs, results=results, answer=safe, user=user_id)
     return safe
 
 
 if __name__ == "__main__":
-    q = " ".join(sys.argv[1:]) or DEFAULT_Q
-    print(asyncio.run(guarded_research(q)))
+    args = sys.argv[1:]
+    user = None
+    if "--user" in args:
+        i = args.index("--user")
+        user = args[i + 1]
+        del args[i:i + 2]
+    q = " ".join(args) or DEFAULT_Q
+    print(asyncio.run(guarded_research(q, user_id=user)))
     print(f"\n[usage] {run_summary()}")

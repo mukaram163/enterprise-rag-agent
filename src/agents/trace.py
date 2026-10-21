@@ -8,7 +8,7 @@ from src.utils.pricing import estimate_cost
 TRACE_FILE = "data/logs/agent_runs.jsonl"
 
 
-def write_trace(question, status, started_at, wall_seconds, subs=None, results=None, answer="", reason=None):
+def write_trace(question, status, started_at, wall_seconds, subs=None, results=None, answer="", reason=None, user=None):
     """One line per research run: what was asked, what each agent did, what it cost. Never raises."""
     try:
         t = run_totals()
@@ -16,6 +16,7 @@ def write_trace(question, status, started_at, wall_seconds, subs=None, results=N
         entry = {
             "timestamp": started_at,
             "question": question,
+            "user": user or "anonymous",
             "status": status,  # ok | partial | blocked
             "reason": reason,
             "wall_seconds": round(wall_seconds, 1),
@@ -58,7 +59,7 @@ def show(n: int = 5) -> None:
         print(f"\n{r['timestamp'][:19]}  {r['status'].upper():8} {r['wall_seconds']}s  "
               f"{r['model_calls']} calls, {r['tokens_in'] + r['tokens_out']:,} tokens, {cost}  "
               f"agents ok: {ok}/{len(r['agents'])}")
-        print(f"  Q: {r['question'][:100]}")
+        print(f"  user: {r.get('user', 'anonymous')}  Q: {r['question'][:90]}")
         if r["reason"]:
             print(f"  blocked: {r['reason']}")
         for a in r["agents"]:

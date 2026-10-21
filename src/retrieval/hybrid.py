@@ -79,7 +79,7 @@ class HybridRetriever:
 
         # 1. Fetch raw dense & sparse results
         dense_raw = self.dense_retriever.search(query_vector=query_vector, top_k=top_k * 2, user_id=user_id) if self.dense_retriever and query_vector else []
-        sparse_raw = self.sparse_retriever.search(query=query, top_k=top_k * 2) if self.sparse_retriever else []
+        sparse_raw = self.sparse_retriever.search(query=query, top_k=top_k * 2, user_id=user_id) if self.sparse_retriever else []
 
         if DEBUG_RETRIEVAL:
             print(f"[DEBUG_RETRIEVAL] Dense retrieved: {len(dense_raw)}, Sparse retrieved: {len(sparse_raw)}")

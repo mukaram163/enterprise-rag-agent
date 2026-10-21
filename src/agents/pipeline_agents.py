@@ -48,14 +48,16 @@ async def _one(session, tools, sq, sem):
     return {"sub_question": sq, "answer": ans, "seconds": round(time.perf_counter() - t0, 1), "tool_calls": trace}
 
 
-async def research_parallel(question: str, concurrency: int = 2, subs=None, verbose: bool = False):
+async def research_parallel(question: str, concurrency: int = 2, subs=None, verbose: bool = False, user_id=None):
     reset_run()  # token counters start fresh for every research run
     subs = subs or await plan(question)
     if len(subs) > MAX_SUBQUESTIONS:
         print(f"[agents] planner made {len(subs)} sub-questions, keeping the first {MAX_SUBQUESTIONS}")
         subs = subs[:MAX_SUBQUESTIONS]
     sem = asyncio.Semaphore(concurrency)
-    params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"])
+    # the app sets who the agents work for; the model cannot change it
+    env = {**os.environ, "RAG_USER_ID": user_id} if user_id else None
+    params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"], env=env)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
