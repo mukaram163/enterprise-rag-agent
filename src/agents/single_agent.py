@@ -77,7 +77,7 @@ async def ask_with_session(session, tools, question: str, trace=None) -> str:
                 SEEN_CITATIONS.setdefault(_loose(c), c)
             print(f"[tool call {calls}] {tc['name']}({args}) -> {len(text)} chars")
             if trace is not None:
-                trace.append({"tool": tc["name"], "query": args.get("query"), "top_k": args.get("top_k"), "chars": len(text)})
+                trace.append({"tool": tc["name"], "query": args.get("query"), "top_k": args.get("top_k"), "chars": len(text), "result_text": text})
             messages.append(ToolMessage(content=text, tool_call_id=tc["id"]))
     # no searches left: force an answer from what was already retrieved
     messages.append(HumanMessage(content=FINAL_NUDGE))
@@ -85,7 +85,7 @@ async def ask_with_session(session, tools, question: str, trace=None) -> str:
     return _done(final.content)
 
 
-async def ask(question: str) -> str:
+async def ask(question: str, trace=None) -> str:
     params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"])
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -97,7 +97,7 @@ async def ask(question: str) -> str:
                     "parameters": t.inputSchema}}
                 for t in mcp_tools
             ]
-            return await ask_with_session(session, tools, question)
+            return await ask_with_session(session, tools, question, trace)
 
 
 if __name__ == "__main__":

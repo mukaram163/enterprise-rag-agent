@@ -27,7 +27,7 @@ def write_trace(question, status, started_at, wall_seconds, subs=None, results=N
                     "seconds": r["seconds"],
                     "ok": not r["answer"].startswith("ERROR:"),
                     "error": r["answer"][:150] if r["answer"].startswith("ERROR:") else None,
-                    "tool_calls": r.get("tool_calls", []),
+                    "tool_calls": [{k: v for k, v in c.items() if k != "result_text"} for c in r.get("tool_calls", [])],
                 }
                 for r in (results or [])
             ],
