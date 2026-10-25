@@ -1,0 +1,51 @@
+[
+  {
+    "question": "How does the curriculum distinguish the second-year and third-year theoretical subjects, and how does it describe the practical training for each year?",
+    "expected_answer": "In the second year, the theoretical subjects are Haematology and Blood Banking, and Histopathology and Cytopathology; the practical component is hands-on training in laboratory techniques in those disciplines. In the third year, the theoretical subjects are Microbiology, Chemical Pathology, and Immunology and Serology; the practical component is hands-on rotational training in laboratory techniques in those disciplines.",
+    "expected_page": [
+      8,
+      9
+    ]
+  },
+  {
+    "question": "What are the curriculum's main components of quality assurance in education, and how does laboratory quality assurance use internal and external quality control?",
+    "expected_answer": "For education, the main areas are quality planning, quality improvement, and quality assessment, guided by areas such as educational programmes, student assessment and support, academic staff, resources, governance, and continuous renewal. In laboratory medicine, quality assurance aims to minimize preanalytical, analytical, and postanalytical errors. Internal quality control is run daily alongside patient samples to identify and minimize systematic and random analytical errors; external quality control is run by national or international agencies, and laboratories are expected to enroll in an external quality assurance scheme.",
+    "expected_page": [
+      14,
+      15
+    ]
+  },
+  {
+    "question": "Compare the second and third professional examinations: which subjects are examined, and what is the total mark allocation for each examination?",
+    "expected_answer": "The Second Professional Examination totals 400 marks and covers Haematology and Blood Banking, and Histopathology and Cytopathology, with 200 marks allocated to each paper. The Third Professional Examination totals 600 marks and covers Chemical Pathology, Microbiology including Parasitology, and Immunology and Serology, with 200 marks allocated to each paper.",
+    "expected_page": [
+      25,
+      28
+    ]
+  },
+  {
+    "question": "Which elective subjects are listed for the fourth year, and how are the final professional examination marks divided between Medical Statistics and Research Methods and the elective subject?",
+    "expected_answer": "The listed elective subjects are Immunohematology, Advanced Clinical Chemistry, Clinical Microbiology, Advanced Clinical Immunology, Medical Genetics, and Molecular Biology. In the Final Professional Examination, Medical Statistics and Research Methods accounts for 200 marks, while the Elective Subject accounts for 300 marks, for a total of 500 marks.",
+    "expected_page": [
+      9,
+      31
+    ]
+  },
+  {
+    "question": "What professional qualities and capabilities are stated as general learning objectives, and what practical competencies should graduates demonstrate in laboratory work?",
+    "expected_answer": "The general learning objectives include accuracy and meticulousness, high ethical and technical proficiency, sound judgment and decision-making, stamina and patience, leadership, problem-solving, planning and management, effective communication, interdisciplinary teamwork, understanding professional behaviour and legal implications, awareness of one's role in healthcare, and continuing education. The specific learning outcomes include applying laboratory theory and procedures at work, handling and testing samples safely, maintaining instruments, relating laboratory results to common disease processes, performing quality control within predetermined limits, and helping upgrade laboratory instrumentation and supplies.",
+    "expected_page": [
+      6,
+      7
+    ]
+  },
+  {
+    "question": "How does the curriculum combine teaching activities with student assessment, including the role of monthly meetings and the different forms of assessment?",
+    "expected_answer": "Teaching methods include large-group lectures, small-group teaching, seminars, assignments, skills teaching, self-study, and internet use. Monthly student meetings include journal club meetings, core curriculum meetings, and skill development. Assessment includes student self-assessment, peer assessment, and faculty internal assessment; faculty assessment considers punctuality, practical work, participation in interactive sessions, and regular class tests. Formative assessment uses student feedback to improve teaching methods and course content, while summative assessment occurs at the end of the programme to evaluate cognitive, psychomotor, and affective domains.",
+    "expected_page": [
+      13,
+      19,
+      20
+    ]
+  }
+]
