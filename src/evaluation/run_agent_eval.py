@@ -39,6 +39,7 @@ def pages_of(text):
 
 async def run_system(system, q):
     reset_run()
+    STATE["subs"] = None
     trace = []
     if system == "single":
         for attempt in (1, 2, 3):
@@ -56,6 +57,7 @@ async def run_system(system, q):
         _, results = await research_parallel(q)
         answer = await synthesize(q, results)
         trace = [c for r in results for c in r.get("tool_calls", [])]
+        STATE["subs"] = [{"sub_question": r["sub_question"], "answer": r["answer"], "seconds": r["seconds"]} for r in results]
     return answer, trace
 
 
@@ -117,6 +119,7 @@ async def score(system, item, metric):
         "retrieval_hit": None, "citation_correct": None, "citation_all": None,
         "faithfulness": None, "passed": False, "error": None,
     }
+    row["sub_results"] = STATE.get("subs")  # what each research agent reported (multi-agent only)
     if exp is None:  # unanswerable question: the system must say it is not stated
         row["passed"] = bool(NOT_STATED.search(answer))
         return row
