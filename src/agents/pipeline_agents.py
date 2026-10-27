@@ -56,7 +56,10 @@ async def research_parallel(question: str, concurrency: int = 2, subs=None, verb
         subs = subs[:MAX_SUBQUESTIONS]
     sem = asyncio.Semaphore(concurrency)
     # the app sets who the agents work for; the model cannot change it
-    env = {**os.environ, "RAG_USER_ID": user_id} if user_id else None
+    extra = {k: v for k, v in os.environ.items() if k.startswith("RAG_") and k != "RAG_USER_ID"}  # search-server settings
+    if user_id:
+        extra["RAG_USER_ID"] = user_id  # set by the app, never by the model or the shell
+    env = extra or None
     params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"], env=env)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:

@@ -1,3 +1,4 @@
+import os
 import asyncio
 import re
 import sys
@@ -23,6 +24,7 @@ FINAL_NUDGE = (
 )
 MAX_TOOL_CALLS = 2
 MAX_TOP_K = 6  # keep search results small: fewer tokens per model call
+SEARCH_TOP_K = 6  # fixed chunks per search (matches the baseline run)
 
 CITE_FIND = re.compile(r"\[[^\]\[]+?\.pdf\s+p\.\s*\d+\]", re.IGNORECASE)
 SEEN_CITATIONS = {}  # loose key -> exact citation text the search tool returned
@@ -67,8 +69,7 @@ async def ask_with_session(session, tools, question: str, trace=None) -> str:
                 continue
             calls += 1
             args = dict(tc["args"])
-            if "top_k" in args:
-                args["top_k"] = min(int(args["top_k"]), MAX_TOP_K)
+            args["top_k"] = SEARCH_TOP_K  # always fetch a fixed number of chunks, whatever the model asks for
             result = await session.call_tool(tc["name"], args)
             if result.isError:
                 raise RuntimeError(f"Tool error: {result.content}")
@@ -86,7 +87,7 @@ async def ask_with_session(session, tools, question: str, trace=None) -> str:
 
 
 async def ask(question: str, trace=None) -> str:
-    params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"])
+    params = StdioServerParameters(command=sys.executable, args=["-m", "src.mcp_tools.server"], env={k: v for k, v in os.environ.items() if k.startswith("RAG_")} or None)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()

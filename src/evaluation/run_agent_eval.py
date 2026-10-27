@@ -203,12 +203,20 @@ def show(named_rows):
 
 def make_judge(kind):
     if kind == "groq":
-        return ChatGroq(model="openai/gpt-oss-120b", groq_api_key=os.environ["GROQ_API_KEY"], temperature=0.0)
+        return ChatGroq(model="openai/gpt-oss-120b", groq_api_key=os.environ["GROQ_API_KEY"], temperature=0.0, max_tokens=8000)
     # a different model family than the one that wrote the answers, so the judge is not grading its own work
     from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(model=os.getenv("JUDGE_MODEL", "gemini-3.8-flash"),
                                   google_api_key=os.environ["GEMINI_API_KEY"], temperature=0.0,
                                   max_output_tokens=8192)
+
+
+def describe_error(e):
+    """Unwrap TaskGroup / ExceptionGroup wrappers so the saved error shows the real cause."""
+    subs = getattr(e, "exceptions", None)
+    if subs:
+        return " | ".join(describe_error(x) for x in subs)
+    return f"{type(e).__name__}: {e}"
 
 
 async def run(system, dataset, limit, sleep, retry_errors=False, judge_kind="gemini"):
@@ -231,7 +239,7 @@ async def run(system, dataset, limit, sleep, retry_errors=False, judge_kind="gem
             rows.append(await score_with_retry(system, item, metric))
         except Exception as e:
             rows.append({"question": item["question"], "expected_page": item["expected_page"], "answer": None,
-                         "passed": False, "error": f"[{STATE['phase']}] {str(e)[:300]}", "retrieval_hit": None,
+                         "passed": False, "error": f"[{STATE['phase']}] {describe_error(e)[:600]}", "retrieval_hit": None,
                          "citation_correct": None, "citation_all": None, "faithfulness": None,
                          "tokens": None, "seconds": None, "cost": None})
         await asyncio.sleep(sleep)

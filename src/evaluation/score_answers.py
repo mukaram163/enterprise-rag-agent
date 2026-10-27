@@ -64,7 +64,7 @@ def fmt(v):
     return "n/a" if v is None else f"{v:.2f}"
 
 
-def report(out):
+def report(out, items_order):
     print(f"{'system':<8}{'coverage':>10}{'wrong facts':>13}{'extra errors':>14}{'graded':>9}")
     for system, graded in out.items():
         ok = [g for g in graded if "error" not in g]
@@ -73,8 +73,9 @@ def report(out):
     print("\nper question (single / multi):")
     s = {g["question"]: g for g in out["single"]}
     m = {g["question"]: g for g in out["multi"]}
-    for i, q in enumerate(s, 1):
-        a, b = s[q], m.get(q, {})
+    order = list(items_order)
+    for i, q in enumerate(order, 1):
+        a, b = s.get(q, {}), m.get(q, {})
         cov = lambda g: fmt(g.get("coverage")) if g and "error" not in g else "n/a"
         err = lambda g: str(len(g.get("extra_errors", []))) if g and "error" not in g else "n/a"
         print(f"Q{i}: coverage {cov(a)} / {cov(b)}    extra errors {err(a)} / {err(b)}")
@@ -88,10 +89,10 @@ def load_previous():
         return json.load(f)
 
 
-async def main(dataset, sleep, resume=False):
+async def main(dataset, sleep, resume=False, judge="gemini"):
     with open(dataset, encoding="utf-8") as f:
         items = {d["question"]: d for d in json.load(f)}
-    llm = make_judge("gemini")
+    llm = make_judge(judge)
     prev = load_previous() if resume else {}
     out = {}
     for system in ("single", "multi"):
@@ -114,7 +115,7 @@ async def main(dataset, sleep, resume=False):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2, ensure_ascii=False)
     print(f"\nSaved: {path}\n")
-    report(out)
+    report(out, list(items))
 
 
 if __name__ == "__main__":
@@ -122,5 +123,6 @@ if __name__ == "__main__":
     ap.add_argument("--dataset", default="data/golden_multi.json")
     ap.add_argument("--sleep", type=float, default=8)
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--judge", default="gemini", choices=["gemini", "groq"])
     a = ap.parse_args()
-    asyncio.run(main(a.dataset, a.sleep, a.resume))
+    asyncio.run(main(a.dataset, a.sleep, a.resume, a.judge))
