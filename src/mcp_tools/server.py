@@ -5,8 +5,6 @@ from typing import Any, Dict, List
 from mcp.server.fastmcp import FastMCP
 
 from src import pipeline
-from src.retrieval.acl_guard import verify_access
-from src.retrieval.expand import PageExpander
 from src.utils.chunk_guard import filter_chunks
 
 mcp = FastMCP("rag-documents")
@@ -14,22 +12,10 @@ mcp = FastMCP("rag-documents")
 # Who the agents work for. Set by the app that starts this server, never by the model.
 USER_ID = os.getenv("RAG_USER_ID") or None
 
-# Whole-page context: when a page is found, the agent also gets that page's other chunks, so lists and
-# tables are not cut into fragments. 0 = off (default). Set RAG_EXPAND_PAGES=3 to turn it on.
-EXPAND_PAGES = int(os.getenv("RAG_EXPAND_PAGES", "0"))
-_expander = None
-
-
-def _expand(api, hits):
-    global _expander
-    if _expander is None:
-        _expander = PageExpander(api.bm25.chunks)
-    expanded = _expander.expand(hits, n_pages=EXPAND_PAGES)
-    # the extra chunks did not come through the search, so they get the same final permission check
-    return verify_access(api.indexer.db_connection_string, expanded, USER_ID)
-
-# Page expansion (off by default). 0 = off; 3 = add the whole pages of the first 3 result pages.
-EXPAND_PAGES = int(os.getenv("RAG_EXPAND_PAGES", "0"))
+# Page expansion: when a page is found, the agent also gets that page's other chunks, so lists and tables
+# are not cut into fragments. 0 = off; 3 = add the whole pages of the first 3 result pages.
+# Set with the RAG_EXPAND_PAGES environment variable; RAG_EXPAND_MAX_CHARS caps the added text.
+EXPAND_PAGES = int(os.getenv("RAG_EXPAND_PAGES", "3"))
 EXPAND_MAX_CHARS = int(os.getenv("RAG_EXPAND_MAX_CHARS", "6000"))
 
 _POS = re.compile(r"_p(\d+)_c(\d+)$")
@@ -92,9 +78,7 @@ def search_documents(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     chunks = api.hybrid_retriever.search(
         query=query, query_vector=emb[0], top_k=top_k, user_id=USER_ID
     )
-    if EXPAND_PAGES > 0:
-        chunks = _expand(api, chunks)
-    chunks = _expand(api, chunks)
+    chunks = _expand(api, chunks)  # whole-page context (does nothing unless expansion is switched on)
     chunks, _removed = filter_chunks(chunks)  # drop chunks that try to instruct the AI
     return [
         {

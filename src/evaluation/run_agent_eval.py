@@ -77,21 +77,34 @@ async def judge_with_retry(metric, sample, attempts=3):
     return None, err
 
 
+def parse_objects(text):
+    """All JSON objects in a text, even when pretty-printed one after another."""
+    dec, i, out = json.JSONDecoder(), 0, []
+    while i < len(text):
+        if text[i] not in "{[":
+            i += 1
+            continue
+        try:
+            obj, end = dec.raw_decode(text, i)
+        except ValueError:
+            i += 1
+            continue
+        out.extend(obj if isinstance(obj, list) else [obj])
+        i = end
+    return out
+
+
 def unique_chunks(trace):
     """Distinct retrieved chunks across all searches, so repeated results are not counted twice."""
     seen, out = set(), []
     for call in trace:
         text = call["result_text"]
-        try:
-            data = json.loads(text)
-            items = data.get("result", [data]) if isinstance(data, dict) else data
-        except ValueError:
-            items = []
-            for line in text.splitlines():
-                try:
-                    items.append(json.loads(line))
-                except ValueError:
-                    pass
+        items = []
+        for obj in parse_objects(text):
+            if isinstance(obj, dict) and isinstance(obj.get("result"), list):
+                items.extend(obj["result"])
+            else:
+                items.append(obj)
         texts = [i["text"] for i in items if isinstance(i, dict) and i.get("text")] or [text]
         for t in texts:
             if t not in seen:
@@ -253,6 +266,22 @@ async def run(system, dataset, limit, sleep, retry_errors=False, judge_kind="gem
     show({system: rows})
 
 
+def compact_contexts(contexts, max_chars=12000):
+    """Re-split saved contexts into chunk texts, drop duplicates, and cap the total size for the judge."""
+    seen, out, total = set(), [], 0
+    for c in contexts:
+        objs = [o for o in parse_objects(c) if isinstance(o, dict) and o.get("text")]
+        for t in ([o["text"] for o in objs] or [c]):
+            if t in seen:
+                continue
+            if total + len(t) > max_chars:
+                return out
+            seen.add(t)
+            out.append(t)
+            total += len(t)
+    return out
+
+
 async def rejudge(system, judge_kind, sleep):
     """Re-run ONLY the judging step on saved agent answers (no agent tokens are spent)."""
     rows = load_latest(system)
@@ -264,7 +293,7 @@ async def rejudge(system, judge_kind, sleep):
         sample = SingleTurnSample(
             user_input=r["question"],
             response=strip_markers(CITE_FIND.sub("", r["answer"])),
-            retrieved_contexts=r["contexts"],
+            retrieved_contexts=compact_contexts(r["contexts"]),
         )
         faith, err = await judge_with_retry(metric, sample)
         if err:

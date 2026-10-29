@@ -23,3 +23,6 @@ data/logs/
 token_expired.json
 
 run.log
+
+data/eval_agents/
+data/eval_runs_failed/
