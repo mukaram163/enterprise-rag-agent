@@ -26,3 +26,4 @@ run.log
 
 data/eval_agents/
 data/eval_runs_failed/
+data/eval_runs/
