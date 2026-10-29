@@ -22,3 +22,5 @@ groq==0.37.1
 mcp==1.30.0
 pytest==9.1.1
 numpy==1.26.4
+torch==2.2.2
+transformers==4.44.2
