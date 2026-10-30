@@ -39,7 +39,7 @@ All numbers are from this repo's own eval tooling. Datasets are in `data/`.
 
 ### Stage 3: chat pipeline, 17-question golden set
 
-Run `data/eval_runs/run_20261010_030259.json` (kept as `data/eval_baseline.json`). Answers by Gemini; faithfulness judged by Groq `gpt-oss-120b` (a different model family from the generator).
+Run of 2026-10-10 (`data/eval_runs/run_20261010_030259.json`) (kept as `data/eval_baseline.json`). Answers by Gemini; faithfulness judged by Groq `gpt-oss-120b` (a different model family from the generator).
 
 | Metric | Result |
 |---|---|
