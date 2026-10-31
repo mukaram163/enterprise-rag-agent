@@ -91,7 +91,7 @@ async def main():
     with open(DATASET, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    judge = ChatGroq(model="openai/gpt-oss-120b", groq_api_key=os.environ["GROQ_API_KEY"], temperature=0.0)
+    judge = ChatGroq(model="openai/gpt-oss-120b", groq_api_key=os.environ["GROQ_API_KEY"], temperature=0.0, max_tokens=8000)
     metric = Faithfulness(llm=LangchainLLMWrapper(judge))
 
     results = []

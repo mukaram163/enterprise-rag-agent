@@ -1,6 +1,6 @@
 # Enterprise RAG Agent: Production RAG with Citations
 
-A retrieval-augmented generation system over Google Drive documents, built in six stages: page-level citations, a streaming chat UI, an evaluation harness, cost routing, guardrails, and a permission-aware multi-agent research system using MCP.
+A retrieval-augmented generation system over Google Drive documents (a 72-page curriculum PDF plus a small second file), built in six stages: page-level citations, a streaming chat UI, an evaluation harness, cost routing, guardrails, and a permission-aware multi-agent research system using MCP.
 
 Every claim about quality below comes from a measured run. Where the measurement is weak, the README says so.
 
@@ -48,7 +48,7 @@ Run of 2026-10-10 (`data/eval_runs/run_20261010_030259.json`) (kept as `data/eva
 | Citation correct | 0.93 |
 | Faithfulness (average) | 0.99 |
 
-Caveats: only 14 of 17 rows had a faithfulness score, so 2 passes have no faithfulness check behind them. Earlier and later runs in the same period were disrupted by free-tier API errors, so only the best complete run is kept.
+Caveats: only 14 of 17 rows had a faithfulness score, so 2 passes have no faithfulness check behind them. Scores vary between runs. Two re-runs on Oct 30 with the same code passed 11 and 9 of 17 (the second included two Gemini quota errors), and five questions flipped between runs, so a single run is noisy to roughly 3 questions. Q4 and Q7 failed in both re-runs even though their answers match the expected answers and cite the right page; the faithfulness judge scores them low, so I treat those as judge errors. Q2 failed because the expected page ranked just outside the top 5. Treat the Oct 10 figure as an upper bound. Earlier and later runs in the same period were disrupted by free-tier API errors, so only the best complete run is kept.
 
 ### Stage 6: single agent vs multi-agent, 6 multi-part questions
 
