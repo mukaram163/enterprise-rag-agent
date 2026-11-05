@@ -238,7 +238,7 @@ data/             golden datasets and the stage-3 baseline
 - Drive sync needs a refreshed OAuth token.
 - Python 3.10 is past end of support.
 - Component wiring lives in `src/api/app.py` as module-level state that agents and scripts read.
-- `main.py` is the stage-1 demo and may be out of date.
+- `scripts/legacy/` holds early stage-1 demo scripts (`main.py`, `ingest_my_pdf.py`, API and Gemini checks). They predate the current architecture and may not run.
 
 ## Future work
 
